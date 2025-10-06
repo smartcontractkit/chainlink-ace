@@ -1,0 +1,24 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - uses: pnpm/action-setup@v3
+        name: Install pnpm
+        with:
+          version: 8
+          run_install: false
+      - run: pnpm install --prod
+      - name: License check
+        uses: smartcontractkit/.github/actions/license-checker@5bf677ffa80140ffea2d623c8bb830f792115091 # v0.1.3
+        with:
+          working-directory: ./packages

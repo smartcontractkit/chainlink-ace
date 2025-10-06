@@ -1,0 +1,18 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "code-complexity": ["error", 8],
+    "contract-name-capwords": "off",
+    "compiler-version": ["error", ">=0.8.20"],
+    "func-name-mixedcase": "off",
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "max-line-length": ["error", 121],
+    "reason-string": ["warn", { "maxLength": 40 }],
+    "gas-custom-errors": "off",
+    "named-parameters-mapping": "warn",
+    "no-console": "off",
+    "not-rely-on-time": "off",
+    "one-contract-per-file": "off",
+    "var-name-mixedcase": "off"
+  }
+}

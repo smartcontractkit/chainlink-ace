@@ -1,0 +1,16 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "code-complexity": ["error", 8],
+    "compiler-version": ["error", ">=0.8.20"],
+    "func-name-mixedcase": "off",
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "max-line-length": ["error", 121],
+    "reason-string": ["warn", { "maxLength": 52 }],
+    "gas-custom-errors": "off",
+    "named-parameters-mapping": "warn",
+    "not-rely-on-time": "off",
+    "one-contract-per-file": "off",
+    "var-name-mixedcase": "off"
+  }
+}
