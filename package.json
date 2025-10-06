@@ -1,0 +1,32 @@
+{
+  "name": "bcm-compliance-contracts",
+  "version": "0.5.0",
+  "description": "BCM Compliance Contracts",
+  "scripts": {
+    "clean": "rm -rf cache out",
+    "build": "forge build --sizes",
+    "foundryup": "foundryup --version `cat .foundry-version`",
+    "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check",
+    "lint": "solhint packages/**/*.sol",
+    "lint:test": "solhint --config \".solhint-test.json\"  --ignore-path \".solhintignore-test\" packages/**/*.t.sol",
+    "wtf": "which forge",
+    "test": "forge test",
+    "test:coverage": "forge coverage",
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
+    "docs": "forge doc --serve --port 4000",
+    "deploy:token:simple": "forge script ./script/DeploySimpleComplianceToken.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
+    "deploy:token:erc20": "forge script ./script/DeployComplianceTokenERC20.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
+    "deploy:token:erc3643": "forge script ./script/DeployComplianceTokenERC3643.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@chainlink/contracts": "1.3.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "solhint": "^5.0.4"
+  }
+}

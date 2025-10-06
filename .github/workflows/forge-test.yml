@@ -1,0 +1,59 @@
+on:
+  - push
+  - pull_request
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  test-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Read foundry version from .foundry-version
+        shell: bash
+        run: |
+          echo "FOUNDRY_VERSION=$(cat .foundry-version)" >> $GITHUB_ENV
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@50d5a8956f2e319df19e6b57539d7e2acb9f8c1e #v1.5.0
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d #v3.0.0
+        name: Install pnpm
+        with:
+          version: 8
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run lint check
+        run: pnpm run fmt:check && pnpm run lint
+
+      - name: Run build
+        run: pnpm build
+
+      - name: Run test
+        run: pnpm test

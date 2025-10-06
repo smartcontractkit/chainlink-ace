@@ -1,0 +1,3 @@
+**/*.t.sol
+packages/vendor/
+node_modules/
