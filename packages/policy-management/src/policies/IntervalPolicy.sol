@@ -218,6 +218,6 @@ contract IntervalPolicy is Policy {
     if (currentSlot >= $.startSlot && currentSlot < $.endSlot) {
       return IPolicyEngine.PolicyResult.Continue;
     }
-    return IPolicyEngine.PolicyResult.Rejected;
+    revert IPolicyEngine.PolicyRejected("execution outside allowed time interval");
   }
 }

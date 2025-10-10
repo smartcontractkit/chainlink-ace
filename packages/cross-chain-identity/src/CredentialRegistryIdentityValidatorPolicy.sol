@@ -60,7 +60,7 @@ contract CredentialRegistryIdentityValidatorPolicy is Policy, CredentialRegistry
     address account = abi.decode(parameters[0], (address));
 
     if (!validate(account, context)) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("account identity validation failed");
     }
     return IPolicyEngine.PolicyResult.Continue;
   }

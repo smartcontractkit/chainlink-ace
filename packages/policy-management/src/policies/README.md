@@ -2,7 +2,6 @@
 
 - [AllowPolicy](#allowpolicy)
 - [BypassPolicy](#bypasspolicy)
-- [GrantorPolicy](#grantorpolicy)
 - [IntervalPolicy](#intervalpolicy)
 - [MaxPolicy](#maxpolicy)
 - [OnlyAuthorizedSenderPolicy](#onlyauthorizedsenderpolicy)
@@ -63,7 +62,7 @@ MUST be an address. If ANY of the addresses provided are NOT present in the allo
 
 - **`run(...)`**
 
-  - Returns `PolicyResult.Rejected` if any of the parameters is not present on the allowlist.
+  - Reverts if any of the parameters is not present on the allowlist.
   - Returns `PolicyResult.Continue` otherwise
 
 - **`postRun(...)`**
@@ -113,124 +112,6 @@ all subsequent policies.
 - **Privileged Access**: Allow specific addresses to bypass other policy checks.
 - **Layered Permissions**: Combine with other policies—e.g., the transaction proceeds as normal unless the caller is on the allowlist.
 
-## GrantorPolicy
-
-### Overview
-
-The `GrantorPolicy` requires a valid signature from an authorized signer (referred to as a "Grantor") for each transaction. The policy implements:
-
-1. Signature validation from pre-approved signers
-2. Time-based expiration checks
-3. Nonce tracking to prevent replay attacks
-
-The policy will reject transactions when:
-
-- The signature is invalid
-- The expiration time has passed
-- The signer is not authorized
-- The nonce has been previously used
-
-### Specific Configuration
-
-1. **Authorized Signers**
-
-   The policy maps each signer address to a boolean in `s_signers`. The contract [owner](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol) can:
-
-   - Add signers with `addSigner(address)` which emits `SignerAdded(address)`
-   - Remove signers with `removeSigner(address)` which emits `SignerRemoved(address)`
-
-   Note: The contract deployer becomes the first signer during construction.
-
-2. **Nonce Tracking**
-
-   The policy maps each sender address to a nonce in `s_senderNonces`. This nonce is included in the hashed message that signers must sign and is incremented after each successful transaction.
-
-   - **Initialization**: The nonce starts at `0` for each new sender.
-   - **Usage**: When `run()` returns `PolicyResult.Continue` and the Policy Engine completes execution, `postRun(...)` increments the nonce.
-   - **Replay Prevention**: Because the current nonce is part of the hashed message, reusing an old signature (which contains an outdated nonce) will produce a mismatch when the policy verifies the signature. Any stale nonce leads to an invalid signature, effectively preventing replay attacks.
-   - **Visibility**: The current nonce for any address can be queried via `senderNonce(address)`.
-
-3. **Expiration**
-
-   The policy validates the `expiresAt` timestamp from the `GrantorContext` against `block.timestamp`. If `expiresAt < block.timestamp`, the policy returns `PolicyResult.Rejected`. This check ensures time-bound authorization.
-
-   ```solidity
-   if (grantorContext.expiresAt < block.timestamp) {
-     return IPolicyEngine.PolicyResult.Rejected;
-   }
-   ```
-
-4. **Message Signing**
-
-   Messages are signed using EIP-191 personal sign format:
-
-   ```solidity
-   bytes32 messageHash = keccak256(abi.encode(
-       from,
-       to,
-       amount,
-       s_senderNonces[from],
-       grantorContext.expiresAt
-   )).toEthSignedMessageHash();
-
-   (address signer,,) = ECDSA.tryRecover(
-    message.toEthSignedMessageHash(),
-    grantorContext.signature
-   );
-   ```
-
-   Notes:
-
-   - [`tryRecover`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/cryptography/ECDSA.sol#L56) validates the signature format and returns the recovered address `signer` (or `address(0)` if invalid). The policy only checks if `s_signers[signer]` is true, ignoring potential signature validation errors.
-   - The signature is validated as an EIP-191 personal message (`eth_sign`), not EIP-712 typed data. Future implementation may use EIP-712 typed data.
-
-### Policy Parameters and Context
-
-The **GrantorPolicy** expects **three** `parameters` plus a `context` object. The parameters **must** be in the following order/format:
-
-| Parameter Name | Type      | Description                                   |
-| -------------- | --------- | --------------------------------------------- |
-| `from`         | `address` | The address initiating the transfer (sender). |
-| `to`           | `address` | The address receiving the transfer.           |
-| `amount`       | `uint256` | The amount being transferred.                 |
-
-The `context` is ABI-encoded data matching the following struct:
-
-```solidity
-struct GrantorContext {
-    uint48 expiresAt;
-    bytes signature;
-}
-```
-
-- **`expiresAt (uint48)`**: A Unix timestamp (in seconds) after which the signature is invalid.
-- **`signature (bytes)`**: The ECDSA signature proving an authorized signer approved this transaction.
-
-### Policy Behavior
-
-1. **`run(...)`**
-
-   - Validates parameter count (must be exactly 3)
-   - Decodes parameters and context
-   - Checks if `expiresAt` timestamp is in the future
-   - Constructs and verifies the message signature
-   - Returns `PolicyResult.Continue` only if:
-     - The signature is valid
-     - The recovered signer is authorized
-     - The expiration time hasn't passed
-   - Returns `PolicyResult.Rejected` otherwise
-
-2. **`postRun(...)`**
-   - Can only be called by the Policy Engine
-   - Validates parameter count (must be exactly 3)
-   - Increments the nonce for the sender address decoded from the first parameter
-
-### Example Use Cases
-
-- **Authorized Transfers**: Require an external authority to sign off on "transfers" (or any custom action) before execution.
-- **Time-limited Approvals**: The signer can impose a specific timeframe (`expiresAt`) for the validity of their signature.
-- **Replay Protection**: Nonce increments ensure a signature can’t be reused in subsequent transactions.
-
 ## IntervalPolicy
 
 ### Overview
@@ -274,7 +155,7 @@ Because `IntervalPolicy` ignores the `parameters` array passed into `run(...)`, 
      uint256 currentSlot =
        ((block.timestamp / s_slotDuration) % s_cycleSize + s_cycleOffset) % s_cycleSize;
      ```
-  2. Returns `PolicyResult.Continue` if `currentSlot` is within `[s_startSlot, s_endSlot)`, otherwise `PolicyResult.Rejected`.
+  2. Returns `PolicyResult.Continue` if `currentSlot` is within `[s_startSlot, s_endSlot)`, otherwise reverts.
 
 - **`postRun(...)`**
   - Not used in this policy (no state changes needed after `run`).
@@ -326,7 +207,7 @@ policy.initialize(address(policyEngine), owner, abi.encode(1000));
 
 // Usage:
 // used <= 1000: PolicyResult.Continue
-// used > 1000:  PolicyResult.Rejected
+// used > 1000:  revert 
 ```
 
 ### Specific Configuration
@@ -356,7 +237,7 @@ No additional `context` is required.
 
   - Expects exactly one parameter, `amount` (`uint256`).
   - Compares `amount` to the current `s_max`.
-  - Returns `PolicyResult.Rejected` if `amount > s_max`.
+  - Reverts if `amount > s_max`.
   - Returns `PolicyResult.Continue` otherwise.
 
 - **`postRun(...)`**
@@ -397,7 +278,7 @@ The `OnlyAuthorizedSenderPolicy` implements access control through an authorized
 - **`run(...)`**
 
   - Returns `PolicyResult.Continue` if `sender` is on the authorized list
-  - Returns `PolicyResult.Rejected` otherwise
+  - Reverts otherwise
 
 - **`postRun(...)`**
   - Not implemented (no state changes required)
@@ -423,7 +304,7 @@ The `OnlyOwnerPolicy` that only allows the policy owner to call the method, simi
 - **`run(...)`**
 
   - Returns `PolicyResult.Continue` if `sender` is the owner of the policy
-  - Returns `PolicyResult.Rejected` otherwise
+  - Reverts otherwise
 
 - **`postRun(...)`**
   - Not implemented (no state changes required)
@@ -455,12 +336,12 @@ The `PausePolicy` allows an [owner](https://github.com/OpenZeppelin/openzeppelin
 | --------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | _No parameters_ | _N/A_ | The policy does not inspect or decode parameters from the Extractor/Mapper. It relies solely on its internal pause flag (`s_paused`) to decide whether to reject or continue a transaction. |
 
-Since `PausePolicy` ignores the `parameters` array passed into `run(...)`, it uses the `s_paused` boolean to immediately reject transactions (`PolicyResult.Rejected`) when paused, or defer (`PolicyResult.Continue`) when unpaused.
+Since `PausePolicy` ignores the `parameters` array passed into `run(...)`, it uses the `s_paused` boolean to immediately reverts when paused, or defer (`PolicyResult.Continue`) when unpaused.
 
 ### Policy Behavior
 
 - **`run(...)`**
-  - Returns `PolicyResult.Rejected` if `s_paused == true`.
+  - Reverts if `s_paused == true`.
   - Returns `PolicyResult.Continue` if `s_paused == false`.
 
 ### Example Use Cases
@@ -496,7 +377,7 @@ MUST be an address. If ANY of the addresses provided are present in the denylist
 
 - **`run(...)`**
 
-  - Returns `PolicyResult.Rejected` if any of the parameters is present on the denylist.
+  - Reverts if any of the parameters is present on the denylist.
   - Returns `PolicyResult.Continue` otherwise
 
 - **`postRun(...)`**
@@ -556,7 +437,7 @@ No additional `context` is used or expected.
 
   - Extracts the `operation (bytes4)` from the single parameter.
   - Checks whether the `sender` holds one of the roles with allowance for the `operation`.
-  - If `hasAllowedRole` is `false`, returns `PolicyResult.Rejected`; otherwise, returns `PolicyResult.Continue`.
+  - If `hasAllowedRole` is `false`, reverts; otherwise, returns `PolicyResult.Continue`.
 
 - **`postRun(...)`**
   - Not implemented in this policy (no state changes after `run`).
@@ -614,9 +495,9 @@ The `SecureMintPolicy` ensures the total supply of a token does not exceed the a
 
    - Extracts the `amount (uint256)` from parameters.
    - Get latest reserves data from the reserves feed.
-      - If `maxStalenessSeconds` is not 0 and the data is older than this value, return `PolicyResult.Rejected`.
+      - If `maxStalenessSeconds` is not 0 and the data is older than this value, revert.
    - Calculates the total backed supply of the token using the reserves value, `reserveMarginMode` and `reserveMarginAmount`.
-      - If the total supply of the token is greater than the backed supply, returns `PolicyResult.Rejected`.
+      - If the total supply of the token is greater than the backed supply, revert.
       - If the total supply of the token is less than or equal to the backed supply, returns `PolicyResult.Continue`.
 
 - **`postRun(...)`**
@@ -673,7 +554,7 @@ The policy expects no additional context.
 
   - Validates parameter count equals 1
   - Decodes the parameter: `amount (uint256)`.
-  - If `amount < s_minAmount` **or** `amount > s_maxAmount` (when `s_maxAmount != 0`), returns `PolicyResult.Rejected`.
+  - If `amount < s_minAmount` **or** `amount > s_maxAmount` (when `s_maxAmount != 0`), reverts.
   - Otherwise, returns `PolicyResult.Continue`.
 
 - **`postRun(...)`**
@@ -737,8 +618,8 @@ No additional `context` is used.
    - Validates parameter count equals 2.
    - Derives the current time period (`currentPeriod = block.timestamp / s_timePeriod`).
    - Compares the stored `timePeriod` and `amount` for `account` against the `currentPeriod` and the incoming `amount`.
-   - If the current period matches, checks whether `existingVolume + newAmount` exceeds `s_maxAmount`. If so, returns `PolicyResult.Rejected`; else, `PolicyResult.Continue`.
-   - If the period is new for this account and `newAmount` exceeds `s_maxAmount`, returns `PolicyResult.Rejected`; otherwise, `PolicyResult.Continue`.
+   - If the current period matches, checks whether `existingVolume + newAmount` exceeds `s_maxAmount`. If so, reverts; else, `PolicyResult.Continue`.
+   - If the period is new for this account and `newAmount` exceeds `s_maxAmount`, reverts; otherwise, `PolicyResult.Continue`.
 
 2. **`postRun(...)`**
    - If the transaction wasn’t rejected, updates the stored record for that account in the current time period by adding `amount`.

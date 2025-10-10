@@ -25,7 +25,7 @@ contract SecureMintPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     token = MockToken(_deployMockToken(address(policyEngine)));
 
@@ -195,7 +195,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 40 ether);
 
     // 40 + 3 > 42, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 3 ether);
 
     // 40 + 2 <= 42, succeeds
@@ -225,7 +227,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setReserveMargin(SecureMintPolicy.ReserveMarginMode.PositivePercentage, 10000); // 100%
 
     // 0 + 0.1 > 0, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 0.1 ether);
   }
 
@@ -240,7 +244,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 30 ether);
 
     // 30 + 4 > 33.6, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 4 ether);
 
     // 30 + 3 <= 33.6, succeeds
@@ -248,7 +254,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 33 ether);
 
     // 35 + 1 > 33.6, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 1 ether);
   }
 
@@ -278,7 +286,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 30 ether);
 
     // 30 + 15 > 40, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 12 ether);
 
     // 30 + 10 <= 40, succeeds
@@ -286,7 +296,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 40 ether);
 
     // 40 + 1 > 40, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 1 ether);
   }
 
@@ -298,7 +310,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setReserveMargin(SecureMintPolicy.ReserveMarginMode.PositiveAbsolute, 50 ether);
 
     // 0 + 0.1 > 0, reverts (any minting should be blocked)
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 0.1 ether);
   }
 
@@ -343,7 +357,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 50 ether);
 
     // 50 + 0.5 <= 50.4, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 0.5 ether);
 
     // 50 + 0.4 <= 50.4, succeeds
@@ -377,7 +393,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 30 ether);
 
     // 30 + 14.1 <= 44, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 14.1 ether);
 
     // 30 + 14 <= 44, succeeds
@@ -385,7 +403,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 44 ether);
 
     // 44 + 1 > 44, reverts
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    );
     token.mint(recipient, 1 ether);
   }
 
@@ -405,7 +425,7 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setMaxStalenessSeconds(600);
 
     porFeed.setUpdatedAt(block.timestamp - 601);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(policy), "reserve data is stale"));
     token.mint(recipient, 1 ether);
   }
 
@@ -416,7 +436,7 @@ contract SecureMintPolicyTest is BaseProxyTest {
     porFeed.setPrice(-1 ether);
 
     // should revert because the reserve is negative
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(policy), "reserve value is negative"));
     token.mint(recipient, 1 ether);
   }
 }

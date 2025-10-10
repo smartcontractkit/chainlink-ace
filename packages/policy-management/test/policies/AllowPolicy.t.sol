@@ -23,7 +23,7 @@ contract AllowPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     AllowPolicy allowPolicyImpl = new AllowPolicy();
     allowPolicy = AllowPolicy(_deployPolicy(address(allowPolicyImpl), address(policyEngine), deployer, ""));
@@ -114,9 +114,7 @@ contract AllowPolicyTest is BaseProxyTest {
 
     // transfer from address to recipient (reverts)
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(allowPolicy)
-      )
+      _encodeRejectedRevert(MockToken.transfer.selector, address(allowPolicy), "address is not on allow list")
     );
     token.transfer(recipient, 100);
   }
@@ -138,9 +136,7 @@ contract AllowPolicyTest is BaseProxyTest {
     // transfer from address to recipient (should revert after removal)
     vm.startPrank(account, account);
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(allowPolicy)
-      )
+      _encodeRejectedRevert(MockToken.transfer.selector, address(allowPolicy), "address is not on allow list")
     );
     token.transfer(recipient, 100);
   }
@@ -155,7 +151,7 @@ contract AllowPolicyTest is BaseProxyTest {
   function test_mint_notInList_failure() public {
     vm.startPrank(deployer, deployer);
     vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.mint.selector, address(allowPolicy))
+      _encodeRejectedRevert(MockToken.mint.selector, address(allowPolicy), "address is not on allow list")
     );
     token.mint(recipient, 20);
   }

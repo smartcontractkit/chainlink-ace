@@ -27,6 +27,6 @@ contract ExpectedContextPolicy is Policy {
     if (keccak256(s_expectedContext) == keccak256(context)) {
       return IPolicyEngine.PolicyResult.Continue;
     }
-    return IPolicyEngine.PolicyResult.Rejected;
+    revert IPolicyEngine.PolicyRejected("context does not match expected value");
   }
 }

@@ -16,10 +16,10 @@ Building compliant applications on the blockchain requires handling:
 
 ## Your Modular Toolkit
 
-| Component                | Description                                                                        |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| **Policy Management**    | Dynamic engine to create and enforce onchain rules.                                |
-| **Cross-Chain Identity** | Portable identity system for EVM chains; attach credentials once, verify anywhere. |
+| Component                | Description                                                                        | Dependencies               |
+| ------------------------ | ---------------------------------------------------------------------------------- | -------------------------- |
+| **Policy Management**    | Dynamic engine to create and enforce onchain rules.                                | Standalone                 |
+| **Cross-Chain Identity** | Portable identity system for EVM chains; attach credentials once, verify anywhere. | Requires Policy Management |
 
 ## Key Features
 
@@ -100,24 +100,47 @@ graph TB
     _Crucially, this same identity and credential would be valid even if Emma were using a different wallet address on a different EVM chain._
 3.  **Volume Rate Policy Executes**: Next, the engine runs the `Volume Rate Policy`, which tracks Emma's trading volume over time and confirms the $50,000 trade is within her daily limit.
 4.  **Transaction Approved**: With all policies passing, the Policy Engine allows the transaction to proceed. The DEX executes the trade, and Emma receives her tokenized bonds.
-    _The power of this model is that if regulations change tomorrow, the DEX's owners could add a new policy (e.g., a 'Time-of-Day Policy') without having to redeploy or alter the main DEX contract._
+
+_The power of this model is that if regulations change tomorrow, the DEX's owners could add a new policy (e.g., a 'Time-of-Day Policy') without having to redeploy or alter the main DEX contract._
 
 If any policy check had failed, the **Policy Engine would have reverted the transaction directly**, preventing a non-compliant trade.
 
 ## 🚀 Ready to Build?
 
-### Want to get your hands dirty immediately?
+### New to ACE? Start here
+
+**Get hands-on immediately.** Our beginner-friendly Getting Started Guide walks you through the core pattern with a simple, working example.
+
+**→ [Start the Getting Started Guide](./getting_started/GETTING_STARTED.md)**
+
+---
+
+### Need identity & credential verification?
+
+**After completing the basic guide**, level up with our Advanced Getting Started Guide featuring KYC checks, sanctions screening, and identity management.
+
+**Best for:** Applications requiring user verification, accredited investor checks, or cross-chain identity.
+
+**→ [Advanced Getting Started Guide](./getting_started/advanced/GETTING_STARTED_ADVANCED.md)**
+
+---
+
+### Want to study production-ready examples?
 
 Build with confidence using our reference implementations as your foundation.
+
+**Best for:** Experienced developers who want to study audited code and adapt it to their needs.
 
 - **Study the reference implementation for each component:**
   - [Policy Management](./packages/policy-management/src)
   - [Cross-Chain Identity](./packages/cross-chain-identity/src)
 - **See full integrations in the [example tokens](./packages/tokens)**
 
-### Want to learn more first?
+---
 
-Understand the architecture and design before diving into implementation.
+### Want to understand the architecture first?
+
+Understand the design before diving into implementation.
 
 **→ Continue reading about the components below**
 
@@ -131,6 +154,19 @@ Use this component to enforce onchain rules that can be updated without redeploy
 - **Zero Downtime Updates**: Add, remove, or modify rules dynamically.
 - **Ready-to-Use Policies**: AllowPolicy, VolumePolicy, OnlyOwnerPolicy, and more.
 
+**How it works as a standalone component:**
+
+```mermaid
+graph LR
+    App[Your Contract] -->|inherits| PP[PolicyProtected]
+    App -->|calls| PE[PolicyEngine]
+    PE -->|executes| P1[Policy 1]
+    PE -->|executes| P2[Policy 2]
+    PE -->|executes| P3[Policy N]
+```
+
+**Use cases:** Access control, volume limits, time restrictions, pauseable functions, role-based permissions.
+
 → **[📋 Quick Guide](./packages/policy-management/README.md)** | **[🏗️ Reference Implementation](./packages/policy-management/src/)** | **[📚 Deep Dive Docs](./packages/policy-management/docs/)** | **[📋 Ready-to-Use Policies](./packages/policy-management/src/policies/README.md)**
 
 ### 🔗 [Cross-Chain Identity](./packages/cross-chain-identity/)
@@ -141,9 +177,28 @@ Use this component to link wallet addresses to a single identity and manage cred
 - **Credential Registry**: Manage credentials (e.g., KYC, AML) that are tied directly to a user's CCID.
 - **Privacy-First**: Store sensitive data offchain, only hashes onchain.
 
+> **Requires:** Policy Management component (listed above)
+
+**How it works integrated with Policy Management:**
+
+```mermaid
+graph TB
+    App[Your Contract] -->|inherits| PP[PolicyProtected]
+    App -->|calls| PE[PolicyEngine]
+    PE -->|executes| IVP[CredentialRegistryIdentityValidatorPolicy]
+    PE -->|executes| SP[SanctionsPolicy]
+    PE -->|executes| OP[Other Policies]
+
+    IVP -->|reads from| IR[IdentityRegistry]
+    IVP -->|reads from| CR[CredentialRegistry]
+    SP -->|reads from| SL[Sanctions List]
+```
+
+**Use cases:** KYC/AML verification, accredited investor checks, cross-chain credential verification, sanctions screening.
+
 → **[📋 Quick Guide](./packages/cross-chain-identity/README.md)** | **[🏗️ Reference Implementation](./packages/cross-chain-identity/src/)** | **[📚 Deep Dive Docs](./packages/cross-chain-identity/docs/)**
 
-### [Example Tokens](./packages/tokens/)
+## [Example Tokens](./packages/tokens/)
 
 Explore our example token contracts to see how these components work together in a real application.
 

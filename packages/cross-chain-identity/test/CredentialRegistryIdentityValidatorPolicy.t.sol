@@ -30,7 +30,7 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
     s_credentials_kyc = new bytes32[](1);
     s_credentials_kyc[0] = CREDENTIAL_KYC;
 
-    s_policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, address(this));
+    s_policyEngine = _deployPolicyEngine(true, address(this));
     s_identityRegistry = _deployIdentityRegistry(address(s_policyEngine));
     s_credentialRegistry = _deployCredentialRegistry(address(s_policyEngine));
 
@@ -79,9 +79,9 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
     bytes[] memory parameters = new bytes[](1);
     parameters[0] = abi.encode(account1);
 
+    vm.expectPartialRevert(IPolicyEngine.PolicyRejected.selector);
     IPolicyEngine.PolicyResult policyRes =
       s_identityValidatorPolicy.run(address(0), address(0), 0x00000000, parameters, "");
-    assert(policyRes == IPolicyEngine.PolicyResult.Rejected);
   }
 
   function test_empty_initialization_and_later_configuration_continues() public {

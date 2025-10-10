@@ -1,0 +1,107 @@
+name: Auto Release on Version PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  extract-version:
+    name: Extract Version
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    permissions:
+      contents: none
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+    steps:
+      - name: Extract version from PR title
+        id: extract-version
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Extract version from PR title like "Release v1.2.3"
+          VERSION=$(echo "$PR_TITLE" | sed -n 's/Release v\([0-9]\+\.[0-9]\+\.[0-9]\+\)/\1/p')
+          if [ -z "$VERSION" ]; then
+            echo "Could not extract version from PR title: $PR_TITLE"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+  create-release:
+    name: Create Release
+    needs: extract-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better release notes
+
+      - name: Create Release
+        id: create-release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          tag_name: v${{ needs.extract-version.outputs.version }}
+          name: Release v${{ needs.extract-version.outputs.version }}
+          generate_release_notes: true
+          make_latest: true
+          body: |
+            ## Release v${{ needs.extract-version.outputs.version }}
+            
+            This release was automatically created when PR #${{ github.event.pull_request.number }} was merged.
+            
+            **PR Details:**
+            - Title: ${{ github.event.pull_request.title }}
+            - Author: ${{ github.event.pull_request.user.login }}
+            - Merged by: ${{ github.event.pull_request.merged_by.login }}
+            
+            **Changes:**
+            ${{ github.event.pull_request.body }}
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        env:
+          RELEASE_VERSION: ${{ needs.extract-version.outputs.version }}
+          RELEASE_URL: ${{ steps.create-release.outputs.url }}
+        with:
+          script: |
+            const { data: comment } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🎉 **Release Created Successfully!**
+              
+              Release v${process.env.RELEASE_VERSION} has been created and is now available.
+              
+              **Release Details:**
+              - Tag: \`v${process.env.RELEASE_VERSION}\`
+              - Release URL: ${process.env.RELEASE_URL}
+              
+              Thank you for contributing to this release! 🚀`
+            });
+
+      - name: Delete Release Branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = context.payload.pull_request.head.ref;
+            console.log(`Deleting branch: ${branchName}`);
+            
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branchName}`
+              });
+              console.log(`Successfully deleted branch: ${branchName}`);
+            } catch (error) {
+              console.log(`Failed to delete branch ${branchName}:`, error.message);
+              // Don't fail the workflow if branch deletion fails
+            }

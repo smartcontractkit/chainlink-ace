@@ -16,7 +16,7 @@ contract TrustedIssuerRegistryTest is BaseProxyTest {
     s_owner = makeAddr("owner");
 
     vm.startPrank(s_owner);
-    s_policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, address(this));
+    s_policyEngine = _deployPolicyEngine(true, address(this));
     s_trustedIssuerRegistry = _deployTrustedIssuerRegistry(address(s_policyEngine));
     vm.stopPrank();
   }

@@ -43,7 +43,7 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
     s_credentials_invalid_nationality[0] = CREDENTIAL_INVALID_NATIONALITY;
 
     // Deploy PolicyEngine through proxy
-    s_policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, address(this));
+    s_policyEngine = _deployPolicyEngine(true, address(this));
 
     // Deploy IdentityRegistry through proxy
     s_identityRegistry = _deployIdentityRegistry(address(s_policyEngine));

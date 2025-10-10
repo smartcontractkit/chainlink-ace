@@ -21,19 +21,13 @@ import {TrustedIssuerRegistry} from "../../src/TrustedIssuerRegistry.sol";
 abstract contract BaseProxyTest is Test {
   /**
    * @notice Deploy PolicyEngine through proxy
-   * @param defaultPolicyResult The default policy result for the engine
+   * @param defaultAllow Whether the default policy engine rule will allow or reject the transaction
+   * @param initialOwner The address of the initial owner of the policy engine
    * @return The deployed PolicyEngine proxy instance
    */
-  function _deployPolicyEngine(
-    IPolicyEngine.PolicyResult defaultPolicyResult,
-    address initialOwner
-  )
-    internal
-    returns (PolicyEngine)
-  {
+  function _deployPolicyEngine(bool defaultAllow, address initialOwner) internal returns (PolicyEngine) {
     PolicyEngine policyEngineImpl = new PolicyEngine();
-    bytes memory policyEngineData =
-      abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultPolicyResult, initialOwner);
+    bytes memory policyEngineData = abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultAllow, initialOwner);
     ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
     return PolicyEngine(address(policyEngineProxy));
   }

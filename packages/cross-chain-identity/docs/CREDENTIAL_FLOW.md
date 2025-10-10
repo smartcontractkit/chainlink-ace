@@ -1,21 +1,21 @@
 # Credential Issuance and Validation Flow
 
-This document provides a detailed walkthrough of the **complete lifecycle** of issuing and validating credentials within the Cross-Chain Identity framework, highlighting the roles of the **User**, an offchain **Verification Issuer**, and the onchain **Registries**.
+This document provides a detailed walkthrough of the **complete lifecycle** of issuing and validating credentials within the Cross-Chain Identity framework, highlighting the roles of the **User**, an offchain **Credential Issuer**, and the onchain **Registries**.
 
 ## Overview
 
 The credential flow demonstrates how identity verification moves from offchain processes to onchain validation:
 
-- A **Verification Issuer** is an authorized entity (e.g., a service provider) responsible for performing offchain checks and registering credentials onchain
+- A **Credential Issuer** is an authorized entity (e.g., a service provider) responsible for performing offchain checks and registering credentials onchain
 - After a credential is registered, applications can verify it directly by consulting the onchain registries and validator utility contracts
-- The Verification Issuer is no longer involved in day-to-day validation checks
+- The Credential Issuer is no longer involved in day-to-day validation checks
 
 ## Complete Flow Diagram
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant VerificationIssuer
+    participant CredentialIssuer
 box rgb(240,240,240) Onchain Contracts
     participant IdentityRegistry
     participant CredentialRegistry
@@ -24,13 +24,13 @@ box rgb(240,240,240) Onchain Contracts
     participant Application
 end
 
-    User ->> VerificationIssuer: 1. Request credential(s) verification (credentialTypeId, ...)
-    VerificationIssuer ->> VerificationIssuer: 2. Offchain verification (e.g., KYC/AML doc checks) and CCID generation
-    VerificationIssuer -->> IdentityRegistry: 3. registerIdentity(ccid, localAddress, context)
-    IdentityRegistry -->> VerificationIssuer: 4. Emit IdentityRegistered event
+    User ->> CredentialIssuer: 1. Request credential(s) verification (credentialTypeId, ...)
+    CredentialIssuer ->> CredentialIssuer: 2. Offchain verification (e.g., KYC/AML doc checks) and CCID generation
+    CredentialIssuer -->> IdentityRegistry: 3. registerIdentity(ccid, localAddress, context)
+    IdentityRegistry -->> CredentialIssuer: 4. Emit IdentityRegistered event
     loop Each Verified Credential
-        VerificationIssuer -->> CredentialRegistry: 5. registerCredential(ccid, credentialTypeId, expiresAt, credentialData (optional), context)
-        CredentialRegistry -->> VerificationIssuer: 6. Emit CredentialRegistered event
+        CredentialIssuer -->> CredentialRegistry: 5. registerCredential(ccid, credentialTypeId, expiresAt, credentialData (optional), context)
+        CredentialRegistry -->> CredentialIssuer: 6. Emit CredentialRegistered event
     end
     Application ->> IdentityValidator: 7. validate(msg.sender, context)
     IdentityValidator ->> IdentityRegistry: 8. getIdentity(address)
@@ -54,13 +54,13 @@ end
 
 ### 1. **Credential Verification Request**
 
-The **User** requests a specific credential(s) (e.g., `credentialTypeId = common.kyc`) for their account address(es) from a trusted **Verification Issuer**.
+The **User** requests a specific credential(s) (e.g., `credentialTypeId = common.kyc`) for their account address(es) from a trusted **Credential Issuer**.
 
 **Example**: Alice wants to use a DeFi protocol that requires KYC verification. She contacts an authorized KYC provider.
 
 ### 2. **Offchain Verification**
 
-The **Verification Issuer** conducts checks offchain (e.g., KYC/AML document reviews or other advanced verifications).
+The **Credential Issuer** conducts checks offchain (e.g., KYC/AML document reviews or other advanced verifications).
 
 **What happens**:
 
@@ -71,7 +71,7 @@ The **Verification Issuer** conducts checks offchain (e.g., KYC/AML document rev
 
 ### 3. **Identity Registration**
 
-If valid, the **Verification Issuer** calls `registerIdentity()` on the **Identity Registry** to associate the user's local address(es) with the generated CCID.
+If valid, the **Credential Issuer** calls `registerIdentity()` on the **Identity Registry** to associate the user's local address(es) with the generated CCID.
 
 ```solidity
 identityRegistry.registerIdentity(ccid, userAddress, context);
@@ -83,7 +83,7 @@ The **IdentityRegistry** emits a `IdentityRegistered` event, confirming successf
 
 ### 5. **Credential Registration**
 
-If valid, the **Verification Issuer** calls `registerCredential()` on the **Credential Registry** to associate the verified credentials with the user's CCID.
+If valid, the **Credential Issuer** calls `registerCredential()` on the **Credential Registry** to associate the verified credentials with the user's CCID.
 
 ```solidity
 credentialRegistry.registerCredential(
@@ -180,7 +180,7 @@ The `context` parameter enables:
 
 ### Privacy Preservation
 
-- Sensitive PII stays offchain with the Verification Issuer
+- Sensitive PII stays offchain with the Credential Issuer
 - Only hashes or minimal references stored onchain
 - CCID provides identity anchor without revealing personal data
 

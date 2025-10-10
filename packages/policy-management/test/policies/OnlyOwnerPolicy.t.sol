@@ -21,7 +21,7 @@ contract OnlyOwnerPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = PolicyEngine(_deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer));
+    policyEngine = PolicyEngine(_deployPolicyEngine(true, deployer));
 
     OnlyOwnerPolicy policyImpl = new OnlyOwnerPolicy();
     policy = OnlyOwnerPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, new bytes(0)));
@@ -39,7 +39,9 @@ contract OnlyOwnerPolicyTest is BaseProxyTest {
 
   function test_transfer_notOwner_reverts() public {
     vm.startPrank(account, account);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller is not the policy owner")
+    );
     token.transfer(recipient, 100);
   }
 }

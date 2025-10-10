@@ -16,7 +16,8 @@ import { CredentialRegistry } from "@chainlink/cross-chain-identity/src/Credenti
 
 // 1. Deploy the engine that will act as the guardian
 PolicyEngine policyEngine = new PolicyEngine();
-policyEngine.initialize(IPolicyEngine.PolicyResult.Allowed); // Recommended default
+bool defaultAllow = true;
+policyEngine.initialize(defaultAllow, address(this)); // Recommended default
 
 // 2. Deploy the registries and transfer their ownership to the engine
 IdentityRegistry identityRegistry = new IdentityRegistry();
@@ -88,9 +89,9 @@ policyEngine.addPolicy(
 
 Your token is now protected. All calls to `transfer()` will be automatically checked to ensure the recipient has a valid KYC credential.
 
-## Task 3: Authorizing a Verification Issuer
+## Task 3: Authorizing a Credential Issuer
 
-The final step is to grant a trusted offchain entity (the **Verification Issuer**) permission to write to the `CredentialRegistry`.
+The final step is to grant a trusted offchain entity (the **Credential Issuer**) permission to write to the `CredentialRegistry`.
 
 **The Goal:** You want to allow a specific address (`verificationIssuer`) to call `registerCredential` on the `CredentialRegistry`, but no one else.
 

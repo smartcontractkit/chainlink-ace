@@ -76,9 +76,9 @@ contract OnlyAuthorizedSenderPolicy is Policy {
     returns (IPolicyEngine.PolicyResult)
   {
     OnlyAuthorizedSenderPolicyStorage storage $ = _getOnlyAuthorizedSenderPolicyStorage();
-    if ($.authorizedList[caller]) {
-      return IPolicyEngine.PolicyResult.Continue;
+    if (!$.authorizedList[caller]) {
+      revert IPolicyEngine.PolicyRejected("sender is not authorized");
     }
-    return IPolicyEngine.PolicyResult.Rejected;
+    return IPolicyEngine.PolicyResult.Continue;
   }
 }

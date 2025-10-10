@@ -23,7 +23,7 @@ contract BypassPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Rejected, deployer);
+    policyEngine = _deployPolicyEngine(false, deployer);
 
     BypassPolicy bypassPolicyImpl = new BypassPolicy();
     bypassPolicy = BypassPolicy(_deployPolicy(address(bypassPolicyImpl), address(policyEngine), deployer, ""));
@@ -101,17 +101,15 @@ contract BypassPolicyTest is BaseProxyTest {
     vm.assertEq(token.balanceOf(recipient), 100);
   }
 
-  function test_transfer_notInList_fails() public {
+  function test_transfer_notInList_defaultReject_fails() public {
     vm.startPrank(account, account);
 
     // transfer from address to recipient (reverts)
-    vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(0))
-    );
+    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
     token.transfer(recipient, 100);
   }
 
-  function test_transfer_removedFromList_fails() public {
+  function test_transfer_removedFromList_defaultReject_fails() public {
     // add the address to the bypass list (setup)
     vm.startPrank(deployer, deployer);
     bypassPolicy.allowAddress(recipient);
@@ -127,9 +125,7 @@ contract BypassPolicyTest is BaseProxyTest {
 
     // transfer from address to recipient (should revert after removal)
     vm.startPrank(account, account);
-    vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(0))
-    );
+    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
     token.transfer(recipient, 100);
   }
 
@@ -139,11 +135,9 @@ contract BypassPolicyTest is BaseProxyTest {
     vm.assertEq(token.balanceOf(account), 100);
   }
 
-  function test_mint_notInList_failure() public {
+  function test_mint_notInList_defaultReject_failure() public {
     vm.startPrank(deployer, deployer);
-    vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.mint.selector, address(0))
-    );
+    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
     token.mint(recipient, 100);
   }
 
