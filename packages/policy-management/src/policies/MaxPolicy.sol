@@ -66,7 +66,7 @@ contract MaxPolicy is Policy {
 
     MaxPolicyStorage storage $ = _getMaxPolicyStorage();
     if (size > $.max) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("amount exceeds maximum limit");
     }
     return IPolicyEngine.PolicyResult.Continue;
   }

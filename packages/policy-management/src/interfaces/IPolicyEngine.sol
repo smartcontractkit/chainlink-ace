@@ -12,11 +12,13 @@ interface IPolicyEngine {
   error TargetAlreadyAttached(address target);
   /// @notice Error emitted when the policy engine is missing or not present.
   error PolicyEngineUndefined();
-  /// @notice Error emitted when a policy run is rejected by the policy.
-  error PolicyRunRejected(bytes4 selector, address policy);
+  /// @notice Error emitted when the PolicyEngine run has been rejected by one of the polices.
+  error PolicyRunRejected(bytes4 selector, address policy, string rejectReason);
   /// @notice Error emitted when a policy mapper results in an error.
   error PolicyMapperError(address policy, bytes errorReason);
-  /// @notice Error emitted when a policy run results in an error.
+  /// @notice Error emitted when an individual policy is rejecting a transaction.
+  error PolicyRejected(string rejectReason);
+  /// @notice Error emitted when the PolicyEngine run encounters an error while executing one of the policies.
   error PolicyRunError(bytes4 selector, address policy, bytes errorReason);
   /// @notice Error emitted when a policy run is unauthorized.
   error PolicyRunUnauthorizedError(address account);
@@ -40,6 +42,14 @@ interface IPolicyEngine {
    * @param target The target contract.
    */
   event TargetDetached(address indexed target);
+
+  /**
+   * @notice Emitted when a policy engine run has completed successfully.
+   * @param sender The sender of the transaction.
+   * @param target The target contract that invoked the method.
+   * @param selector The selector of the method invoked on the target.
+   */
+  event PolicyRunComplete(address indexed sender, address indexed target, bytes4 indexed selector);
 
   /**
    * @notice Emitted when a policy is added to the policy engine.
@@ -72,28 +82,29 @@ interface IPolicyEngine {
   event PolicyParametersSet(address indexed policy, bytes[] parameters);
 
   /**
-   * @notice Emitted when the default policy result is set for the policy engine.
-   * @param defaultPolicy Default action to take if no policy explicitly returns an Allow or a Reject.
+   * @notice Emitted when the default policy action rule is set for the policy engine.
+   * @param defaultAllow Indicates whether to allow or reject a transaction if no policy explicitly returns an Allow
+   * or a Reject. True to allow, false to reject.
    */
-  event DefaultPolicyResultSet(PolicyResult defaultPolicy);
+  event DefaultPolicyAllowSet(bool defaultAllow);
 
   /**
-   * @notice Emitted when the default policy result for a target is set.
+   * @notice Emitted when the default policy allow rule for a target is set.
    * @param target The target contract.
-   * @param defaultPolicy Default action to take if no policy explicitly returns an Allow or a Reject.
+   * @param defaultAllow Indicates whether to allow or reject a transaction if no policy explicitly returns an Allow
+   * or a Reject. True to allow, false to reject.
    */
-  event TargetDefaultPolicyResultSet(address indexed target, PolicyResult defaultPolicy);
+  event TargetDefaultPolicyAllowSet(address indexed target, bool defaultAllow);
 
   /**
-   * @notice The PolicyResult enum represents the possible results of a policy run.
+   * @notice The PolicyResult enum represents the possible types of success results of a policy run. When a policy
+   * should reject a transaction, it MUST revert using the `PolicyReject` error with a descriptive reject message.
    * @param None No specific policy result, typically used as a default or uninitialized state.
-   * @param Rejected The policy rejected the run.
    * @param Allowed The policy allowed the run.
-   * @param Continue The policy allowed the run and should continue to the next policy.
+   * @param Continue The policy did not reject the run and processing should continue to the next policy.
    */
   enum PolicyResult {
     None,
-    Rejected,
     Allowed,
     Continue
   }
@@ -218,17 +229,20 @@ interface IPolicyEngine {
   function getPolicies(address target, bytes4 selector) external view returns (address[] memory);
 
   /**
-   * @notice Sets the default policy result for the policy engine, if no policy explicitly returns an Allow or a Reject.
-   * @param defaultPolicy Default action to take if no policy explicitly returns an Allow or a Reject.
+   * @notice Sets whether to allow or reject the transaction if no policy explicitly returns an Allow or a Reject.
+   * @param defaultAllow Indicates whether to allow or reject a transaction if no policy explicitly returns an Allow
+   * or a Reject. True to allow, false to reject.
    */
-  function setDefaultPolicyResult(PolicyResult defaultPolicy) external;
+  function setDefaultPolicyAllow(bool defaultAllow) external;
 
   /**
-   * @notice Sets the default policy result for a specific target.
+   * @notice Sets whether to allow or reject the transaction if no policy explicitly returns an Allow or a Reject
+   * for a specific target.
    * @param target The address of the target contract.
-   * @param defaultPolicy Default action to take if no policy explicitly returns an Allow or a Reject.
+   * @param defaultAllow Indicates whether to allow or reject a transaction if no policy explicitly returns an Allow
+   * or a Reject. True to allow, false to reject.
    */
-  function setTargetDefaultPolicyResult(address target, PolicyResult defaultPolicy) external;
+  function setTargetDefaultPolicyAllow(address target, bool defaultAllow) external;
 
   /**
    * @notice Runs the policies for a given payload for offchain pre-validation. MUST revert on policy rejection/failure.

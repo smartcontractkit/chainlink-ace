@@ -42,9 +42,9 @@ Policy Management is built on a few core components that work together to protec
 - **`Policy`**: A self-contained contract that holds a single rule. It uses a `run()` function for read-only checks and has an optional [`postRun()`](docs/CONCEPTS.md#policy-flow-diagram) function that can modify state _after_ a check has passed.
 - **`Extractor`**: A helper contract that parses transaction data for the policies. For most common use cases, the `PolicyEngine` handles the underlying parameter mapping automatically. You can learn more about the [Extractor and Mapper pattern in our Concepts guide](docs/CONCEPTS.md#the-extractor-and-mapper-pattern).
 
-A `Policy` contract's `run()` function must return one of three possible results, which dictates how the `PolicyEngine` proceeds:
+A `Policy` contract's `run()` function can either return a result or revert to reject the transaction:
 
-- **`Rejected`**: Immediately blocks the transaction and causes it to revert. This is a final "no" that bypasses all subsequent policies.
+- **`revert IPolicyEngine.PolicyRejected(reason)`**: Immediately blocks the transaction with a descriptive error message. This is a final "no" that bypasses all subsequent policies and provides clear feedback about why the transaction was rejected.
 - **`Allowed`**: Immediately approves the transaction and also bypasses all subsequent policies in the chain. This is a final "yes".
 - **`Continue`**: The check passed, but the decision is deferred. The engine proceeds to the next policy in the chain, or applies its default result if none remain.
 
@@ -64,9 +64,9 @@ sequenceDiagram
     PolicyEngine->>Policy1: 3. run()
 
     alt Policy Rejects
-        Policy1-->>PolicyEngine: 4a. Returns `Rejected`
+        Policy1-->>PolicyEngine: 4a. revert PolicyRejected(reason)
         Note over PolicyEngine: Skips any subsequent policies
-        PolicyEngine-->>PolicyProtectedContract: 5a. REVERT
+        PolicyEngine-->>PolicyProtectedContract: 5a. REVERT with reason
     else Policy Allows
         Policy1-->>PolicyEngine: 4b. Returns `Allowed`
         Note over PolicyEngine: Skips any subsequent policies
@@ -109,37 +109,26 @@ contract MyPausableContract is PolicyProtected {
 
 ### 2. Deploy and Connect the Components
 
-In your deployment script, deploy the `PolicyEngine`, your contract, and an `OnlyAuthorizedSenderPolicy`. Then, authorize the `securityAdmin` address in the policy and register the policy with the engine.
+> **Note:** All Policy Management components must be deployed behind a proxy because they use OpenZeppelin's upgradeable contracts pattern (disabled constructors with initializers). This typically uses `ERC1967Proxy` for upgradeability, though minimal proxies (clones) may be used for immutable components. See the **[Getting Started Guide: Deployment Script](../../getting_started/GETTING_STARTED.md#the-deployment-script)** for the complete proxy deployment pattern.
+
+Once your components are deployed, here are the key configuration steps:
 
 ```solidity
-import { PolicyEngine } from "@chainlink/policy-management/core/PolicyEngine.sol";
-import { OnlyAuthorizedSenderPolicy } from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
-import { MyPausableContract } from "./MyPausableContract.sol";
+// 1. Authorize who can trigger the policy
+onlyAuthorizedSenderPolicy.authorizeSender(securityAdmin);
 
-// --- In your deployment script ---
-address contractOwner = 0x...;
-address securityAdmin = 0x...; // A separate, trusted address for pausing
-
-// 1. Deploy the engine and the protected contract
-PolicyEngine policyEngine = new PolicyEngine();
-policyEngine.initialize(IPolicyEngine.PolicyResult.Allowed); // Recommended default
-
-MyPausableContract myContract = new MyPausableContract();
-myContract.initialize(contractOwner, address(policyEngine)); // Set owner and attach engine
-
-// 2. Deploy the policy and authorize the security admin
-OnlyAuthorizedSenderPolicy pauserPolicy = new OnlyAuthorizedSenderPolicy();
-pauserPolicy.initialize(address(policyEngine), contractOwner, new bytes(0)); // Policy managed by the owner
-pauserPolicy.authorizeSender(securityAdmin); // But only the securityAdmin can trigger it
-
-// 3. Register the policy with the engine for the pause function
-bytes4 selector = myContract.pause.selector;
-policyEngine.addPolicy(address(myContract), selector, address(pauserPolicy), new bytes32[](0));
+// 2. Register the policy with the engine
+policyEngine.addPolicy(
+    address(myContract),
+    myContract.pause.selector,
+    address(onlyAuthorizedSenderPolicy),
+    new bytes32[](0)
+);
 ```
 
-Now, any calls to `myContract.pause()` will automatically be checked by the `pauserPolicy`. The `contractOwner` cannot call it directly; only the `securityAdmin` can, demonstrating a clear and powerful separation of roles that is difficult to achieve with simple ownership patterns.
+These two calls establish the relationship: the `OnlyAuthorizedSenderPolicy` is now enforced on `myContract.pause()`, and only `securityAdmin` can satisfy it. The `contractOwner` cannot call it directly, demonstrating a clear and powerful separation of roles that is difficult to achieve with simple ownership patterns.
 
-This design also makes the contract adaptable to future requirements. For instance, if a new rule dictates that the `pause` function can only be called after a majority of partners have submitted offchain approvals, you wouldn't need to change `MyPausableContract`. You could simply deploy a new `PartnerApprovalPolicy`, and add it to the policy chain for the `pause` selector in the `PolicyEngine`. The `runPolicy` modifier ensures both the original `pauserPolicy` and the new approval policy are checked automatically, without any changes to the core contract.
+This design also makes the contract adaptable to future requirements. For instance, if a new rule dictates that the `pause` function can only be called after a majority of partners have submitted offchain approvals, you wouldn't need to change `MyPausableContract`. You could simply deploy a new `PartnerApprovalPolicy`, and add it to the policy chain for the `pause` selector in the `PolicyEngine`. The `runPolicy` modifier ensures both the original `onlyAuthorizedSenderPolicy` and the new approval policy are checked automatically, without any changes to the core contract.
 
 ## Working with Policies
 

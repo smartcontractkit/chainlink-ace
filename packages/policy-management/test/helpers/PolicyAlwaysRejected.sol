@@ -18,6 +18,6 @@ contract PolicyAlwaysRejected is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    return IPolicyEngine.PolicyResult.Rejected;
+    revert IPolicyEngine.PolicyRejected("test policy always rejects");
   }
 }

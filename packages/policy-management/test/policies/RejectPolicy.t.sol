@@ -23,7 +23,7 @@ contract RejectPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     RejectPolicy rejectPolicyImpl = new RejectPolicy();
     rejectPolicy = RejectPolicy(_deployPolicy(address(rejectPolicyImpl), address(policyEngine), deployer, ""));
@@ -104,9 +104,7 @@ contract RejectPolicyTest is BaseProxyTest {
 
     // transfer from sender to recipient (reverts)
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(rejectPolicy)
-      )
+      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
     );
     token.transfer(recipient, 100);
   }
@@ -124,9 +122,7 @@ contract RejectPolicyTest is BaseProxyTest {
 
     // transfer from sender to recipient (reverts)
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(rejectPolicy)
-      )
+      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
     );
     token.transfer(recipient, 100);
   }
@@ -139,9 +135,7 @@ contract RejectPolicyTest is BaseProxyTest {
     // transfer from address to recipient (sanity check)
     vm.startPrank(account, account);
     vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(rejectPolicy)
-      )
+      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
     );
     token.transfer(recipient, 100);
 
@@ -166,9 +160,7 @@ contract RejectPolicyTest is BaseProxyTest {
     // add account as rejected
     rejectPolicy.rejectAddress(account);
     vm.assertEq(rejectPolicy.addressRejected(account), true);
-    vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.mint.selector, address(rejectPolicy))
-    );
+    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(rejectPolicy), "address is on reject list"));
     token.mint(account, 100);
   }
 

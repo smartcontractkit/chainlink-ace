@@ -96,7 +96,7 @@ contract AllowPolicy is Policy {
     for (uint256 i = 0; i < parameters.length; i++) {
       address account = abi.decode(parameters[i], (address));
       if (!$.allowList[account]) {
-        return IPolicyEngine.PolicyResult.Rejected;
+        revert IPolicyEngine.PolicyRejected("address is not on allow list");
       }
     }
     return IPolicyEngine.PolicyResult.Continue;

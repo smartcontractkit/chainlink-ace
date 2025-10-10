@@ -8,19 +8,19 @@ A Cross-Chain Identity system has multiple layers of trust and several critical 
 
 This document outlines the critical security principles and best practices to consider when implementing and managing a Cross-Chain Identity system.
 
-## 1. Verification Issuer Security
+## 1. Credential Issuer Security
 
-**The Principle:** The **Verification Issuer** is the most trusted entity in the system. It is the offchain actor that verifies real-world information and has the onchain authority to create identities and issue credentials. Its security is paramount.
+**The Principle:** The **Credential Issuer** is the most trusted entity in the system. It is the offchain actor that verifies real-world information and has the onchain authority to create identities and issue credentials. Its security is paramount.
 
 **Considerations:**
 
-- **Authorization:** How do you authorize a new Verification Issuer? Is it a single address, a multi-sig, or a DAO-governed role? How do you revoke this authority?
+- **Authorization:** How do you authorize a new Credential Issuer? Is it a single address, a multi-sig, or a DAO-governed role? How do you revoke this authority?
 - **Issuance Policies:** Does the issuer have internal rules to prevent issuing improper credentials? For example, rate limiting or value checks.
 - **Auditability:** Are all issuance and revocation actions logged in a way that can be audited, both offchain and onchain via events?
 
 ## 2. Registry Access Control & Integrity
 
-**The Principle:** The onchain `IdentityRegistry` and `CredentialRegistry` contracts must be protected against unauthorized writes. Only authorized Verification Issuers should be able to modify them.
+**The Principle:** The onchain `IdentityRegistry` and `CredentialRegistry` contracts must be protected against unauthorized writes. Only authorized Credential Issuers should be able to modify them.
 
 **Considerations:**
 

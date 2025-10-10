@@ -81,7 +81,7 @@ contract RejectPolicy is Policy {
     for (uint256 i = 0; i < parameters.length; i++) {
       address account = abi.decode(parameters[i], (address));
       if ($.rejectList[account]) {
-        return IPolicyEngine.PolicyResult.Rejected;
+        revert IPolicyEngine.PolicyRejected("address is on reject list");
       }
     }
     return IPolicyEngine.PolicyResult.Continue;

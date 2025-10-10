@@ -57,7 +57,7 @@ These concepts are implemented through a few key onchain contracts and offchain 
 ### Core Identity Components
 
 - **`IdentityRegistry` & `CredentialRegistry`**: These two contracts are the heart of the system. The first maps user addresses to their universal CCID, and the second stores the credentials (like KYC status) associated with that CCID.
-- **Verification Issuer (Offchain Actor)**: This is a trusted entity (e.g., your KYC provider) that performs real-world verification. It has the onchain permission to create new identities in the `IdentityRegistry` and/or issue credentials to them in the `CredentialRegistry`.
+- **Credential Issuer (Offchain Actor)**: This is a trusted entity (e.g., your KYC provider) that performs real-world verification. It has the onchain permission to create new identities in the `IdentityRegistry` and/or issue credentials to them in the `CredentialRegistry`.
 - **`CredentialRegistryIdentityValidatorPolicy`**: This is a specialized, pre-built policy that contains all the logic for checking credentials. You attach this to your application's functions to enforce your compliance rules.
 
 ### The Governance Layer (Policy Management)
@@ -65,7 +65,7 @@ These concepts are implemented through a few key onchain contracts and offchain 
 The entire identity system is designed to be securely governed by the [Policy Management component](../policy-management/README.md).
 
 - **Protecting the Registries**: The administrative functions on the `IdentityRegistry` and `CredentialRegistry` are protected by a `PolicyEngine`. This ensures that no unauthorized changes can be made.
-- **Authorizing Issuers**: Instead of hardcoding who can manage the registries, you use a policy (like `OnlyAuthorizedSenderPolicy`) to grant a specific `Verification Issuer` the permission to call administrative functions on the `IdentityRegistry` and/or the `CredentialRegistry`.
+- **Authorizing Issuers**: Instead of hardcoding who can manage the registries, you use a policy (like `OnlyAuthorizedSenderPolicy`) to grant a specific `Credential Issuer` the permission to call administrative functions on the `IdentityRegistry` and/or the `CredentialRegistry`.
 
 This two-layered approach provides a powerful separation of concerns: the identity components manage the data, and the policy components manage the permissions.
 
@@ -74,7 +74,7 @@ This diagram illustrates how the components work together in the recommended, in
 ```mermaid
 graph TD
     subgraph "Offchain"
-        Issuer["Verification Issuer"]
+        Issuer["Credential Issuer"]
     end
 
     subgraph "Onchain Application"

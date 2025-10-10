@@ -1,0 +1,95 @@
+name: Create Version Update PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.0.0)'
+        required: true
+      target_branch:
+        description: 'Target branch for the PR (default: main)'
+        required: false
+        default: 'main'
+
+jobs:
+  verify-version:
+    name: Verify version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: none
+    steps:
+      - name: Check if version is valid
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format. Please use semantic versioning (e.g. 1.0.0)."
+            exit 1
+          fi
+
+  create-version-pr:
+    name: Create Version Update PR
+    needs: verify-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d #v3.0.0
+      name: Install pnpm
+      with:
+        version: 8
+        run_install: false
+
+    - name: Create version branch
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@users.noreply.github.com"
+        git checkout -b release/v${{ inputs.version }}
+
+    - name: Update package.json version
+      run: pnpm version --no-git-tag-version --allow-same-version ${{ inputs.version }}
+
+    - name: Commit version changes
+      run: |
+        git add package.json
+        git commit -m "chore: update package.json to version ${{ inputs.version }} for release"
+
+    - name: Push version branch
+      run: git push origin release/v${{ inputs.version }}
+
+    - name: Create Pull Request
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: pr } = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `Release v${{ inputs.version }}`,
+            head: `release/v${{ inputs.version }}`,
+            base: '${{ inputs.target_branch }}',
+            body: `## Release v${{ inputs.version }}
+            
+            This PR updates the package.json version to ${{ inputs.version }} for release.
+            
+            **Note**: This PR was automatically created by the release workflow. Merging this PR will trigger the release creation.
+            
+            ### Changes
+            - Updated package.json version to ${{ inputs.version }}
+            - Target branch: \`${{ inputs.target_branch }}\``
+          });
+          
+          console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+
+          // Add labels to the PR
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.number,
+            labels: ['release', 'automated']
+          });
+
+          console.log(`Added labels to PR #${pr.number}: release, automated`);

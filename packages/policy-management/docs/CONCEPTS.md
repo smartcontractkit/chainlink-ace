@@ -25,8 +25,8 @@ The Policy Management architecture is designed to be as flexible and decoupled a
   1.  Calling the correct `Extractor` to parse the transaction data.
   2.  Mapping the extracted parameters for each policy (either internally by default, or by delegating to a custom **[`Mapper`](#the-advanced-flow-custom-mappers)**).
   3.  Executing a chain of `Policy` contracts in a defined order.
-  4.  Processing the `Allowed`, `Rejected`, or `Continue` result from each policy.
-  5.  Applying a final, default result if no policy returns a definitive `Allowed` or `Rejected`.
+  4.  Processing the `Allowed`, `Continue` result or `PolicyRejected` revert from each policy.
+  5.  Applying a final, default result if no policy returns a definitive `Allowed` or revert.
 
 - **`Policy`**: A modular rule. Each policy is a small, focused contract with a `run()` function that receives parameters and returns a verdict. This is where your specific business or compliance logic lives. The `Policy` can also have an optional `postRun()` function for state changes.
 
@@ -61,8 +61,8 @@ sequenceDiagram
         PolicyEngine->>Policy2: 9a. run(caller, subject, selector, mapped_params, context)
 
         alt Final Decision
-            Policy2-->>PolicyEngine: 10a. Returns `Allowed` or `Rejected`
-            PolicyEngine->>Policy2: 11a. postRun(...) (if not Rejected)
+            Policy2-->>PolicyEngine: 10a. Returns `Allowed` or reverts `PolicyRejected`
+            PolicyEngine->>Policy2: 11a. postRun(...) (if not reverted)
             PolicyEngine-->>YourContract: 12a. Allows or Reverts Transaction
         else No More Policies
              Policy2-->>PolicyEngine: 10b. Returns `Continue`
@@ -72,8 +72,8 @@ sequenceDiagram
         end
 
     else Policy 1 Makes Final Decision
-        Policy1-->>PolicyEngine: 6b. Returns `Allowed` or `Rejected`
-        PolicyEngine->>Policy1: 7b. postRun(...) (if not Rejected)
+        Policy1-->>PolicyEngine: 6b. Returns `Allowed` or reverts `PolicyRejected`
+        PolicyEngine->>Policy1: 7b. postRun(...) (if not reverted)
         Note over PolicyEngine: Skips all subsequent policies
         PolicyEngine-->>YourContract: 8b. Allows or Reverts Transaction
     end
@@ -88,14 +88,14 @@ sequenceDiagram
 3.  **Diagram Step 6-7 — Processing the Result**  
     The diagram now shows two main paths:
 
-    - **Policy 1 makes a final decision (Path 6b):** If `Policy1` returns `Allowed` or `Rejected`, the engine calls its optional `postRun(...)` function (if not `Rejected`) and the process stops, skipping `Policy2` entirely.
+    - **Policy 1 makes a final decision (Path 6b):** If `Policy1` returns `Allowed` the engine calls its optional `postRun(...)` function (if not reverted) and the process stops, skipping `Policy2` entirely.
     - **Policy 1 defers (Path 6a):** If `Policy1` returns `Continue`, the engine calls its optional `postRun(...)` function and prepares to execute the next policy in the chain.
 
 4.  **Diagram Step 8-13 — Second Policy Execution**  
     Following Path 6a, the engine now prepares the parameters required by **`Policy2`** and calls its `run` function. The outcome of this second call (or any subsequent policy) will determine the final result, or the engine will use its default if `Policy2` also returns `Continue`.
 
 5.  **Branching Decisions & `postRun`**
-    - **`Rejected`**: The policy has found a definitive reason to block the transaction. The `PolicyEngine` immediately reverts the entire transaction. No `postRun` is called.
+    - **reverts `PolicyRejected`**: The policy has found a definitive reason to block the transaction. The `PolicyEngine` immediately reverts the entire transaction. No `postRun` is called.
     - **`Allowed`**: The engine then calls the policy's optional `postRun(...)` function (if implemented), which can be used to perform state changes. The engine then **skips** any remaining policies and allows the transaction.
     - **`Continue`**: The engine calls the policy's optional `postRun(...)` function (if implemented), then moves to the next policy in the chain. If no policies remain, it applies the engine's default outcome.
 

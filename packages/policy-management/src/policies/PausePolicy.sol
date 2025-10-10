@@ -73,6 +73,10 @@ contract PausePolicy is Policy {
   {
     // Gas optimization: load storage reference once
     PausePolicyStorage storage $ = _getPausePolicyStorage();
-    return $.paused ? IPolicyEngine.PolicyResult.Rejected : IPolicyEngine.PolicyResult.Continue;
+    if ($.paused) {
+      revert IPolicyEngine.PolicyRejected("contract is paused");
+    } else {
+      return IPolicyEngine.PolicyResult.Continue;
+    }
   }
 }

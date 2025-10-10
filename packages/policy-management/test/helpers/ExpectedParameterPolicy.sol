@@ -34,6 +34,6 @@ contract ExpectedParameterPolicy is Policy {
     ) {
       return IPolicyEngine.PolicyResult.Allowed;
     }
-    return IPolicyEngine.PolicyResult.Rejected;
+    revert IPolicyEngine.PolicyRejected("parameters do not match expected values");
   }
 }

@@ -8,12 +8,12 @@ By supporting both self-sovereign identity principles and delegated verification
 
 ## Glossary of Key Terms
 
-| Term                    | Role                                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Verification Issuer** | An **offchain** entity (e.g., a KYC provider) trusted to verify real-world information and write the results (credentials) onchain.                     |
-| **Identity Validator**  | An **onchain** contract that your dApp calls to check if a user meets a set of credential requirements.                                                 |
-| **Credential Source**   | An **onchain** data structure that tells the Identity Validator which `IdentityRegistry` and `CredentialRegistry` to trust for a given credential type. |
-| **CCID**                | A **`bytes32` identifier** that represents a single, universal identity for a user across all their addresses and all EVM chains.                       |
+| Term                   | Role                                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Credential Issuer**  | An **offchain** entity (e.g., a KYC provider) trusted to verify real-world information and write the results (credentials) onchain.                     |
+| **Identity Validator** | An **onchain** contract that your dApp calls to check if a user meets a set of credential requirements.                                                 |
+| **Credential Source**  | An **onchain** data structure that tells the Identity Validator which `IdentityRegistry` and `CredentialRegistry` to trust for a given credential type. |
+| **CCID**               | A **`bytes32` identifier** that represents a single, universal identity for a user across all their addresses and all EVM chains.                       |
 
 ## Why Cross-Chain Identity?
 
@@ -89,7 +89,7 @@ graph TD
 
 - **Credential Sources**: Trusted sources that map specific Credential Type Identifiers to an **Identity Registry**, **Credential Registry**, and (optionally) a **Credential Data Validator**. A single source can handle multiple credential types.
 
-- **Verification Issuer**: An offchain entity (e.g., service providers) authorized to conduct external checks (such as document verification, w3c credential validation, vLEI validation) and register the resulting credentials onchain.
+- **Credential Issuer**: An offchain entity (e.g., service providers) authorized to conduct external checks (such as document verification, w3c credential validation, vLEI validation) and register the resulting credentials onchain.
 
 - **Identity Validator**: A smart contract that lets applications validate accounts by leveraging the registries and validators.
 
@@ -201,27 +201,23 @@ The system involves several key actors:
 
 1. **Credential Issuer**
 
-   - An offchain entity that performs the identity check and issues credential(s) for a subject, possibly containing personally identifiable information (PII)
+   - An offchain entity that performs real-world identity verification, generates a CCID for the subject, and posts the credential(s), possibly containing PII-redacted credential(s) in the onchain registries
 
-2. **Verification Issuer**
-
-   - Offchain Verification Issuers receive the credential(s) from the Credential Issuer, verify the authenticity, calculate/generate a CCID for the subject, and post the identity and PII-redacted credential(s) in the onchain registries
-
-3. **Identity and Credential Registry**
+2. **Identity and Credential Registry**
 
    - The Identity and Credential Registries are onchain registry contracts that maintain the identity of users, along with the verified credentials. These contracts can be used by onchain applications to verify the identity and inspect the list of issued credentials, and any associated data, of users
 
-4. **Identity Validator**
+3. **Identity Validator**
    - The Identity Validator is an onchain utility contract that allows an application to specify one or more sources of identity/credential registries, along with all the required credentials in order to be considered a valid user. The Identity Validator can additionally use the data associated with a credential to determine the validity of the credential. Using the Identity Validator, an application can perform identity checks based solely on the caller's address and need not be aware of the CCID concept nor the credential type identifiers.
 
 For a visual representation of how these components interact, see the [Credential Issuance and Validation Flow](./CREDENTIAL_FLOW.md).
 
 ### Credential Flow
 
-A typical **credential lifecycle** includes an offchain **Verification Issuer** that issues a credential about a **User** into the onchain **Registries**:
+A typical **credential lifecycle** includes an offchain **Credential Issuer** that issues a credential about a **User** into the onchain **Registries**:
 
-1. **Request**: The **User** initiates a credential request with a Verification Issuer (e.g., for KYC compliance)
-2. **Issuance**: The **Verification Issuer** conducts offchain checks and, if successful, registers the resulting credential onchain under the user's CCID. This onchain action is authorized by a policy in the `PolicyEngine`.
+1. **Request**: The **User** initiates a credential request with a Credential Issuer (e.g., for KYC compliance)
+2. **Issuance**: The **Credential Issuer** conducts offchain checks and, if successful, registers the resulting credential onchain under the user's CCID. This onchain action is authorized by a policy in the `PolicyEngine`.
 3. **Validation**: Applications enforce compliance by protecting their functions with the `CredentialRegistryIdentityValidatorPolicy`. When a user calls a protected function, the policy automatically checks if they possess the required credentials.
 
 ### Context Parameter Usage
@@ -230,7 +226,7 @@ Throughout the component, many functions accept a `bytes context` parameter. Thi
 
 For example:
 
-- An offchain Verification Issuer might embed cryptographic proofs (signatures or merkle proofs) to demonstrate that a credential meets certain offchain requirements
+- An offchain Credential Issuer might embed cryptographic proofs (signatures or merkle proofs) to demonstrate that a credential meets certain offchain requirements
 - A multi-signature governance process may supply aggregated approvals indicating that a credential registration is valid
 
 By keeping `context` as a generic `bytes` array, implementers have freedom to define and decode any extra data relevant to their system, without overloading the core function signatures.
@@ -239,7 +235,7 @@ By keeping `context` as a generic `bytes` array, implementers have freedom to de
 
 ### Why Offchain Validation?
 
-Because many credential formats (e.g., w3c Verifiable Credentials, vLEI credentials) contain personally identifiable information (PII), it is neither practical nor desirable to store such data fully onchain. Instead, this component enables **offchain validation** by a Verification Issuer, who then publishes only minimal onchain references. This approach preserves privacy while supporting a wide range of credential types and formats.
+Because many credential formats (e.g., w3c Verifiable Credentials, vLEI credentials) contain personally identifiable information (PII), it is neither practical nor desirable to store such data fully onchain. Instead, this component enables **offchain validation** by a Credential Issuer, who then publishes only minimal onchain references. This approach preserves privacy while supporting a wide range of credential types and formats.
 
 ### Why CCID Instead of Addresses?
 

@@ -254,16 +254,16 @@ contract SecureMintPolicy is Policy {
 
     // reserve is not expected to be negative
     if (reserve < 0) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("reserve value is negative");
     }
 
     if ($.maxStalenessSeconds > 0 && block.timestamp - updatedAt > $.maxStalenessSeconds) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("reserve data is stale");
     }
 
     IERC20 token = IERC20(subject);
     if (amount + token.totalSupply() > totalMintableSupply(uint256(reserve))) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("mint would exceed available reserves");
     }
 
     return IPolicyEngine.PolicyResult.Continue;

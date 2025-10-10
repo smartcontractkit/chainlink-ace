@@ -16,19 +16,12 @@ import {MockToken} from "./MockToken.sol";
 abstract contract BaseProxyTest is Test {
   /**
    * @notice Deploy PolicyEngine through proxy
-   * @param defaultPolicyResult The default policy result for the engine
+   * @param defaultAllow The default policy result for the engine (true = allow, false = reject)
    * @return The deployed PolicyEngine proxy instance
    */
-  function _deployPolicyEngine(
-    IPolicyEngine.PolicyResult defaultPolicyResult,
-    address initialOwner
-  )
-    internal
-    returns (PolicyEngine)
-  {
+  function _deployPolicyEngine(bool defaultAllow, address initialOwner) internal returns (PolicyEngine) {
     PolicyEngine policyEngineImpl = new PolicyEngine();
-    bytes memory policyEngineData =
-      abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultPolicyResult, initialOwner);
+    bytes memory policyEngineData = abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultAllow, initialOwner);
     ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
     return PolicyEngine(address(policyEngineProxy));
   }
@@ -66,5 +59,17 @@ abstract contract BaseProxyTest is Test {
     bytes memory mockTokenData = abi.encodeWithSelector(MockToken.initialize.selector, policyEngine);
     ERC1967Proxy mockTokenProxy = new ERC1967Proxy(address(mockTokenImpl), mockTokenData);
     return address(mockTokenProxy);
+  }
+
+  function _encodeRejectedRevert(
+    bytes4 selector,
+    address policy,
+    string memory reason
+  )
+    internal
+    pure
+    returns (bytes memory)
+  {
+    return abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, selector, policy, reason);
   }
 }

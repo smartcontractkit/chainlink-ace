@@ -22,7 +22,7 @@ contract VolumeRatePolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     token = MockToken(_deployMockToken(address(policyEngine)));
 
@@ -93,7 +93,11 @@ contract VolumeRatePolicyTest is BaseProxyTest {
 
     token.transfer(recipient, 100);
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
+      )
+    );
     token.transfer(recipient, 101);
 
     assert(token.balanceOf(recipient) == 100);
@@ -122,7 +126,11 @@ contract VolumeRatePolicyTest is BaseProxyTest {
     token.transfer(recipient, 200);
     assert(token.balanceOf(recipient) == 300);
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
+      )
+    );
     token.transfer(recipient, 1);
   }
 
@@ -137,7 +145,11 @@ contract VolumeRatePolicyTest is BaseProxyTest {
     vm.assertEq(token.balanceOf(recipient), 200);
 
     // second transfer at time period 1000 (fails)
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
+      )
+    );
     token.transfer(recipient, 200);
 
     // change time period duration to 2 days and wrap to 2000 days
