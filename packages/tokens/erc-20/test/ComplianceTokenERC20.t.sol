@@ -36,7 +36,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     vm.startPrank(s_owner);
 
-    s_policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, s_owner);
+    s_policyEngine = _deployPolicyEngine(true, s_owner);
 
     ERC20TransferExtractor transferExtractor = new ERC20TransferExtractor();
     s_policyEngine.setExtractor(IERC20.transfer.selector, address(transferExtractor));
@@ -131,14 +131,28 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
   function test_mint_over_failure() public {
     address alice = makeAddr("alice");
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.mint.selector, volumePolicy));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.mint.selector,
+        address(volumePolicy),
+        "amount outside allowed volume limits"
+      )
+    );
     s_token.mint(alice, 220);
   }
 
   function test_mint_under_failure() public {
     address alice = makeAddr("alice");
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.mint.selector, volumePolicy));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.mint.selector,
+        address(volumePolicy),
+        "amount outside allowed volume limits"
+      )
+    );
     s_token.mint(alice, 50);
   }
 
@@ -148,7 +162,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.mint.selector, minterBurnerList));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.mint.selector,
+        address(minterBurnerList),
+        "sender is not authorized"
+      )
+    );
     s_token.mint(alice, 10);
   }
 
@@ -182,7 +203,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.burn.selector, minterBurnerList));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.burn.selector,
+        address(minterBurnerList),
+        "sender is not authorized"
+      )
+    );
     s_token.burn(111);
   }
 
@@ -231,7 +259,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.burnFrom.selector, minterBurnerList));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.burnFrom.selector,
+        address(minterBurnerList),
+        "sender is not authorized"
+      )
+    );
     s_token.burnFrom(alice, 70);
   }
 
@@ -261,7 +296,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.transfer.selector, volumePolicy));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        IERC20.transfer.selector,
+        address(volumePolicy),
+        "amount outside allowed volume limits"
+      )
+    );
     s_token.transfer(bob, 210);
   }
 
@@ -274,7 +316,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.transfer.selector, volumePolicy));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        IERC20.transfer.selector,
+        address(volumePolicy),
+        "amount outside allowed volume limits"
+      )
+    );
     s_token.transfer(bob, 50);
   }
 
@@ -375,7 +424,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 120);
 
     vm.startPrank(alice);
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.freeze.selector, freezingList));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.freeze.selector,
+        address(freezingList),
+        "sender is not authorized"
+      )
+    );
     s_token.freeze(alice, 100, "");
   }
 
@@ -441,7 +497,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.freeze(alice, 60, "");
 
     vm.startPrank(alice);
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.unfreeze.selector, freezingList));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.unfreeze.selector,
+        address(freezingList),
+        "sender is not authorized"
+      )
+    );
     s_token.unfreeze(alice, 60, "");
   }
 
@@ -480,11 +543,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(bob);
 
-    vm.expectRevert(policyRejection(ComplianceTokenERC20.forceTransfer.selector, onlyOwnerPolicy));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyRunRejected.selector,
+        ComplianceTokenERC20.forceTransfer.selector,
+        address(onlyOwnerPolicy),
+        "caller is not the policy owner"
+      )
+    );
     s_token.forceTransfer(alice, bob, 60, "");
-  }
-
-  function policyRejection(bytes4 selector, IPolicy policy) internal returns (bytes memory) {
-    return abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, selector, address(policy));
   }
 }

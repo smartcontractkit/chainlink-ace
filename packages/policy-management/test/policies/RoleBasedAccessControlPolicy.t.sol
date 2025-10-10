@@ -22,7 +22,7 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     token = MockToken(_deployMockToken(address(policyEngine)));
 
@@ -129,7 +129,9 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   function test_transfer_senderWithoutRole_reverts() public {
     vm.startPrank(txSender);
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    );
     token.transfer(recipient, 100);
   }
 
@@ -153,7 +155,9 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     vm.startPrank(txSender);
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    );
     token.transfer(recipient, 100);
   }
 
@@ -172,7 +176,9 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     policy.removeOperationAllowanceFromRole(MockToken.transfer.selector, allowedRole);
 
     vm.startPrank(txSender);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    );
     token.transfer(recipient, 100);
     assertEq(token.balanceOf(recipient), 100);
   }
@@ -192,7 +198,9 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     policy.revokeRole(allowedRole, txSender);
 
     vm.startPrank(txSender);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    );
     token.transfer(recipient, 100);
 
     assert(token.balanceOf(recipient) == 100);
@@ -207,7 +215,9 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     policy.grantRole(anotherRole, txSender);
 
     vm.startPrank(txSender);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    );
     token.transfer(recipient, 100);
   }
 }

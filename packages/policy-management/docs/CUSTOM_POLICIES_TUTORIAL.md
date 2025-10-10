@@ -66,7 +66,7 @@ contract LockoutPolicy is Policy {
         // We only care about the original sender of the transaction.
         if (lockoutExpiresAt[caller] > block.timestamp) {
             // If the sender's lockout period is still active, reject.
-            return IPolicyEngine.PolicyResult.Rejected;
+             revert IPolicyEngine.PolicyRejected("LockoutPolicy: Address is locked out");
         }
 
         // Otherwise, continue to the next policy.
@@ -102,7 +102,7 @@ Let's modify our `run` function to expect the `recipient` as a parameter and add
         address recipient = abi.decode(parameters[0], (address));
 
         if (lockoutExpiresAt[recipient] > block.timestamp) {
-            return IPolicyEngine.PolicyResult.Rejected;
+            revert IPolicyEngine.PolicyRejected("LockoutPolicy: Address is locked out");
         }
 
         return IPolicyEngine.PolicyResult.Continue;
@@ -172,22 +172,22 @@ contract MyCustomPolicy is Policy {
     ) public view virtual override returns (IPolicyEngine.PolicyResult) {
         // Your custom validation logic here...
         //
-        // Based on your logic, return one of the three possible results.
+        // Based on your logic, return one of the two possible results or revert.
 
-        // Use REJECTED to definitively block the transaction.
+        // Revert with PolicyRejected to definitively block the transaction.
         // This HALTS execution and bypasses all subsequent policies.
         // if (condition_for_rejection) {
-        //     return IPolicyEngine.PolicyResult.Rejected;
+        //     revert IPolicyEngine.PolicyRejected("reason for rejection");
         // }
 
-        // Use ALLOWED to definitively approve the transaction.
+        // Return ALLOWED to definitively approve the transaction.
         // This ALSO HALTS execution and bypasses all subsequent policies.
         // This is powerful and should be used with care (e.g., for an admin bypass).
         // if (condition_for_allowance) {
         //     return IPolicyEngine.PolicyResult.Allowed;
         // }
 
-        // Use CONTINUE if your check passes but other policies in the chain should still be executed.
+        // Return CONTINUE if your check passes but other policies in the chain should still be executed.
         // This is the most common return value for a passing check.
         return IPolicyEngine.PolicyResult.Continue;
     }

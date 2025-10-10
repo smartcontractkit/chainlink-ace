@@ -20,7 +20,7 @@ contract MaxPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     MaxPolicy policyImpl = new MaxPolicy();
     policy = MaxPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, abi.encode(100)));
@@ -48,7 +48,7 @@ contract MaxPolicyTest is BaseProxyTest {
   }
 
   function test_transfer_overMax_reverts() public {
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(MockToken.transfer.selector, address(policy), "amount exceeds maximum limit"));
     token.transfer(recipient, 200);
   }
 }

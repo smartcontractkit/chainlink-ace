@@ -125,7 +125,7 @@ contract VolumePolicy is Policy {
     // Gas optimization: load storage reference once
     VolumePolicyStorage storage $ = _getVolumePolicyStorage();
     if (($.maxAmount != 0 && amount > $.maxAmount) || amount < $.minAmount) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("amount outside allowed volume limits");
     }
 
     return IPolicyEngine.PolicyResult.Continue;

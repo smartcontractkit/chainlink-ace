@@ -21,7 +21,7 @@ contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer, deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     OnlyAuthorizedSenderPolicy policyImpl = new OnlyAuthorizedSenderPolicy();
     policy = OnlyAuthorizedSenderPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, ""));
@@ -89,9 +89,7 @@ contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
     vm.startPrank(sender, sender);
 
     // transfer from sender to recipient (reverts)
-    vm.expectRevert(
-      abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, MockToken.transfer.selector, address(policy))
-    );
+    vm.expectRevert(_encodeRejectedRevert(MockToken.transfer.selector, address(policy), "sender is not authorized"));
     token.transfer(recipient, 100);
   }
 }

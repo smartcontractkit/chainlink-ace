@@ -27,9 +27,9 @@ contract OnlyOwnerPolicy is Policy {
       revert IPolicyEngine.InvalidConfiguration("expected 0 parameters");
     }
 
-    if (caller == owner()) {
-      return IPolicyEngine.PolicyResult.Continue;
+    if (caller != owner()) {
+      revert IPolicyEngine.PolicyRejected("caller is not the policy owner");
     }
-    return IPolicyEngine.PolicyResult.Rejected;
+    return IPolicyEngine.PolicyResult.Continue;
   }
 }

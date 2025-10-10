@@ -144,14 +144,14 @@ contract VolumeRatePolicy is Policy {
 
     if (timePeriod == transferredAt.timePeriod && transferredAt.timePeriodDuration == $.timePeriodDuration) {
       if (transferredAt.amount + amount > $.maxAmount) {
-        return IPolicyEngine.PolicyResult.Rejected;
+        revert IPolicyEngine.PolicyRejected("volume rate limit exceeded for time period");
       } else {
         return IPolicyEngine.PolicyResult.Continue;
       }
     }
 
     if (amount > $.maxAmount) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("volume rate limit exceeded for time period");
     }
 
     return IPolicyEngine.PolicyResult.Continue;

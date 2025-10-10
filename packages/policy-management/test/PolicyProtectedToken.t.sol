@@ -10,15 +10,15 @@ import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 contract SecureToken_MaxPolicy is BaseProxyTest {
   MockToken public token;
   PolicyEngine public policyEngine;
+  MaxPolicy public policy;
 
   function setUp() public {
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, address(this));
+    policyEngine = _deployPolicyEngine(true, address(this));
 
     token = MockToken(_deployMockToken(address(policyEngine)));
 
     MaxPolicy policyImpl = new MaxPolicy();
-    MaxPolicy policy =
-      MaxPolicy(_deployPolicy(address(policyImpl), address(policyEngine), address(this), abi.encode(100)));
+    policy = MaxPolicy(_deployPolicy(address(policyImpl), address(policyEngine), address(this), abi.encode(100)));
     MockTokenExtractor extractor = new MockTokenExtractor();
 
     bytes4[] memory selectors = new bytes4[](3);
@@ -51,23 +51,25 @@ contract SecureToken_MaxPolicy is BaseProxyTest {
   }
 
   function test_transfer_defaultPolicyRejected_reverts() public {
-    policyEngine.setTargetDefaultPolicyResult(address(token), IPolicyEngine.PolicyResult.Rejected);
+    policyEngine.setTargetDefaultPolicyAllow(address(token), false);
 
     address recipient = makeAddr("recipient");
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
     token.transfer(recipient, 100);
   }
 
   function test_transfer_overQuota_reverts() public {
     address recipient = makeAddr("recipient");
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(MockToken.transfer.selector, address(policy), "amount exceeds maximum limit"));
     token.transfer(recipient, 200);
   }
 
   function test_transferWithContext_overQuota_reverts() public {
     address recipient = makeAddr("recipient");
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(MockToken.transferWithContext.selector, address(policy), "amount exceeds maximum limit")
+    );
     token.transferWithContext(recipient, 200, "");
   }
 }

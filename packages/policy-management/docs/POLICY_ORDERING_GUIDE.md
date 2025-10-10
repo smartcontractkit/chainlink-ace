@@ -4,7 +4,7 @@
 
 Policies execute sequentially in the exact order they were added to the `PolicyEngine`. The execution order is critical because:
 
-- **`Rejected`** - Immediately stops execution and reverts the transaction
+- **reverts `PolicyRejected`** - Immediately stops execution and reverts the transaction
 - **`Allowed`** - Immediately stops execution and allows the transaction (skips all remaining policies)
 - **`Continue`** - Proceeds to the next policy in the chain, or applies the default engine behavior if no more policies remain
 

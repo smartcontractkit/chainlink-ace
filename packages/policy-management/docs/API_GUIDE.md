@@ -39,7 +39,8 @@ Here is how you would write the deployment script code:
 ```solidity
 // --- In your deployment script ---
 PolicyEngine policyEngine = new PolicyEngine();
-policyEngine.initialize(IPolicyEngine.PolicyResult.Allowed); // Recommended default
+bool defaultAllow = true;
+policyEngine.initialize(defaultAllow, address(this)); // Recommended default
 
 MyGuardedContract myContract = new MyGuardedContract();
 
@@ -119,7 +120,7 @@ The `PolicyEngine` will now automatically call the `ERC20TransferExtractor`, fin
 
 A powerful feature of the system is policy reuse. You can apply the same policy contract to multiple different functions, even if those functions have different parameters.
 
-**The Goal:** Imagine you have a [`SanctionsPolicy`](../../../getting_started//SanctionsPolicy.sol) already checking the `to` address on `transfer` calls. Now, you also want to block minting directly to a sanctioned address.
+**The Goal:** Imagine you have a [`SanctionsPolicy`](../../../getting_started/advanced/SanctionsPolicy.sol) already checking the `to` address on `transfer` calls. Now, you also want to block minting directly to a sanctioned address.
 
 **The Action:** You will call `addPolicy` again, this time targeting the `mint` selector. You will provide the name of the parameter from the `mint` function's extractor that corresponds to the address you want to check.
 
@@ -146,29 +147,29 @@ The same `sanctionsPolicy` instance now protects both the `transfer` and `mint` 
 
 ## 3. Setting a Default Result
 
-**The Goal:** You want to define the engine's behavior for the case where a transaction passes through all of a function's policies without any of them returning a definitive `Allowed` or `Rejected`.
+**The Goal:** You want to define the engine's behavior for the case where a transaction passes through all of a function's policies without any of them returning a definitive `Allowed` or reverting `PolicyRejected`.
 
 **The Recommendation:** For most development and production scenarios, it is **recommended to set the default to `Allowed`**.
 
-**The Action:** In your deployment script, call `policyEngine.setDefaultResult()`.
+**The Action:** In your deployment script, call `policyEngine.setDefaultPolicyAllow()`.
 
 ```solidity
 // --- In your deployment script ---
 
 // Set the default result for the entire engine.
-policyEngine.setDefaultResult(IPolicyEngine.PolicyResult.Allowed);
+policyEngine.setDefaultPolicyAllow(true);
 ```
 
 ### Rationale and Alternative Approaches
 
 There are two primary philosophies for the default behavior of a policy system.
 
-1.  **Default `Allowed` (Recommended):**
+1.  **Default `Allowed` is `true` (Recommended):**
 
-    - **Pros:** This approach maintains the regular, expected behavior of your contract's functions until you decide which specific protections are required. It allows you to start with a working system and progressively layer on restrictions (`Reject` policies) as needed.
+    - **Pros:** This approach maintains the regular, expected behavior of your contract's functions until you decide which specific protections are required. It allows you to start with a working system and progressively layer on restrictions (reject policies that revert) as needed.
     - **Cons:** You must be diligent in protecting all new, sensitive functions. If you add a protected function but forget to add a policy, it will be open by default.
 
-2.  **Default `Rejected` (Alternative "Fail-Safe" Approach):**
+2.  **Default `Allowed` is `false` (Alternative "Fail-Safe" Approach):**
     - **Pros:** This is a more aggressive security posture. It ensures that no transaction can pass unless a policy explicitly permits it, which prevents new or misconfigured functions from being accidentally exposed.
     - **Cons:** This model forces you to have at least one policy in every chain that returns `Allowed`, which can add complexity.
 
@@ -184,7 +185,8 @@ First, write a policy that is designed to receive and decode data from the `cont
 
 ```solidity
 // Assumes usage of OpenZeppelin's ECDSA library
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 
 contract SignaturePolicy is Policy {
     address public requiredSigner;
@@ -206,11 +208,11 @@ contract SignaturePolicy is Policy {
 
         address recoveredSigner = ECDSA.recover(signedHash, context);
 
-        if (recoveredSigner == requiredSigner) {
-            return IPolicyEngine.PolicyResult.Continue;
+        if (recoveredSigner != requiredSigner) {
+            revert IPolicyEngine.PolicyRejected("SignaturePolicy: invalid signature");
         }
 
-        return IPolicyEngine.PolicyResult.Rejected;
+        return IPolicyEngine.PolicyResult.Continue;
     }
 }
 ```

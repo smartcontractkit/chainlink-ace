@@ -21,7 +21,7 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     token = MockToken(_deployMockToken(address(policyEngine)));
 
@@ -72,14 +72,22 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorExtractsTimeBelowLowerBoundInterval_reverts() public {
     uint256 timestamp = generateTimestampForTargetHour(10);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
   function test_transfer_timeExtractorExtractsTimeAboveUpperBoundInterval_reverts() public {
     uint256 timestamp = generateTimestampForTargetHour(18);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
@@ -108,7 +116,11 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(2, 10);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
@@ -122,7 +134,11 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(2, 18);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
@@ -136,7 +152,11 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(0, 14);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(dayIntervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
@@ -150,7 +170,11 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(6, 14);
     vm.warp(timestamp);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(dayIntervalPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 100);
   }
 
@@ -267,7 +291,11 @@ contract IntervalPolicyTest is BaseProxyTest {
     uint256 slot4Timestamp = baseTimestamp + (4 * 3600);
     vm.warp(slot4Timestamp);
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(
+      _encodeRejectedRevert(
+        MockToken.transfer.selector, address(lastSlotPolicy), "execution outside allowed time interval"
+      )
+    );
     token.transfer(recipient, 25);
 
     uint256 slot11Timestamp = baseTimestamp + (11 * 3600);

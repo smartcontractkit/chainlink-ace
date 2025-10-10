@@ -150,7 +150,7 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
     }
 
     if (!hasAllowedRole(selector, caller)) {
-      return IPolicyEngine.PolicyResult.Rejected;
+      revert IPolicyEngine.PolicyRejected("caller lacks required role for operation");
     }
 
     return IPolicyEngine.PolicyResult.Continue;

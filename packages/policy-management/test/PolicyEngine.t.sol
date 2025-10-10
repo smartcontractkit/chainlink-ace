@@ -11,6 +11,7 @@ import {DummyExtractor} from "./helpers/DummyExtractor.sol";
 import {ExpectedParameterPolicy} from "./helpers/ExpectedParameterPolicy.sol";
 import {CustomMapper} from "./helpers/CustomMapper.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
+import {PolicyAlwaysContinue} from "./helpers/PolicyAlwaysContinue.sol";
 
 contract PolicyEngineTest is BaseProxyTest {
   PolicyEngine public policyEngine;
@@ -21,12 +22,13 @@ contract PolicyEngineTest is BaseProxyTest {
 
   PolicyAlwaysAllowed public policyAlwaysAllowedImpl;
   PolicyAlwaysRejected public policyAlwaysRejectedImpl;
+  PolicyAlwaysContinue public policyAlwaysContinueImpl;
   PolicyFailingRun public policyFailingRunImpl;
   PolicyAlwaysAllowedWithPostRunError public policyAllowedWithPostRunErrorImpl;
   ExpectedParameterPolicy public expectedParameterPolicyImpl;
 
   function setUp() public {
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Rejected, address(this));
+    policyEngine = _deployPolicyEngine(false, address(this));
 
     target = makeAddr("target");
 
@@ -34,6 +36,7 @@ contract PolicyEngineTest is BaseProxyTest {
 
     policyAlwaysAllowedImpl = new PolicyAlwaysAllowed();
     policyAlwaysRejectedImpl = new PolicyAlwaysRejected();
+    policyAlwaysContinueImpl = new PolicyAlwaysContinue();
     policyFailingRunImpl = new PolicyFailingRun();
     policyAllowedWithPostRunErrorImpl = new PolicyAlwaysAllowedWithPostRunError();
     expectedParameterPolicyImpl = new ExpectedParameterPolicy();
@@ -80,21 +83,23 @@ contract PolicyEngineTest is BaseProxyTest {
   }
 
   function test_run_whenNoPoliciesAddedThenDefaultPolicyIsUsed() public {
-    bytes memory expectedRevert = abi.encodeWithSignature("PolicyRunRejected(bytes4,address)", selector, address(0));
+    bytes memory expectedRevert = abi.encodeWithSelector(
+      IPolicyEngine.PolicyRunRejected.selector, 0, address(0), "no policy allowed the action and default is reject"
+    );
 
     vm.expectRevert(expectedRevert);
     vm.startPrank(target);
     policyEngine.run(testPayload);
   }
 
-  function test_setDefaultPolicy_doesNotAllowContinueValueAndReverts() public {
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.InvalidConfiguration.selector, "Default policy must be either Allowed or Rejected"
-      )
-    );
+  function test_run_whenNoPoliciesDefaultAllowedEmitsCompleteEvent() public {
+    policyEngine.setDefaultPolicyAllow(true);
 
-    policyEngine.setDefaultPolicyResult(IPolicyEngine.PolicyResult.Continue);
+    vm.startPrank(target);
+
+    vm.expectEmit();
+    emit IPolicyEngine.PolicyRunComplete(testPayload.sender, target, testPayload.selector);
+    policyEngine.run(testPayload);
   }
 
   function test_run_whenSingleAllowedPolicyAddedThenPolicyIsUsed() public {
@@ -110,13 +115,25 @@ contract PolicyEngineTest is BaseProxyTest {
     emit PolicyAlwaysAllowed.PolicyAllowedExecuted(1);
 
     vm.startPrank(target);
-    try policyEngine.run(testPayload) {
-      success = true;
-    } catch {
-      success = false;
-    }
 
-    assertTrue(success, "Policy should allow execution");
+    vm.expectEmit();
+    emit IPolicyEngine.PolicyRunComplete(testPayload.sender, target, testPayload.selector);
+    policyEngine.run(testPayload);
+  }
+
+  function test_run_whenSingleContinuedPolicyAddedThenPolicyIsUsed() public {
+    policyEngine.setDefaultPolicyAllow(true);
+
+    PolicyAlwaysContinue policy =
+      PolicyAlwaysContinue(_deployPolicy(address(policyAlwaysContinueImpl), address(policyEngine), address(this), ""));
+
+    policyEngine.addPolicy(target, selector, address(policy), new bytes32[](0));
+
+    vm.startPrank(target);
+
+    vm.expectEmit();
+    emit IPolicyEngine.PolicyRunComplete(testPayload.sender, target, testPayload.selector);
+    policyEngine.run(testPayload);
   }
 
   function test_run_whenRejectingPolicyPrecedesAllowingPolicyThenRevertsOccurs() public {
@@ -131,9 +148,7 @@ contract PolicyEngineTest is BaseProxyTest {
     policyEngine.addPolicy(target, selector, address(policyAllowed), new bytes32[](0));
 
     vm.startPrank(target);
-    bytes memory expectedRevert = abi.encodeWithSignature("PolicyRunRejected(bytes4,address)", selector, policyRejected);
-
-    vm.expectRevert(expectedRevert);
+    vm.expectRevert(_encodeRejectedRevert(selector, address(policyRejected), "test policy always rejects"));
 
     policyEngine.run(testPayload);
   }
@@ -281,7 +296,7 @@ contract PolicyEngineTest is BaseProxyTest {
     vm.stopPrank();
 
     vm.startPrank(target);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(selector, address(policyRejected), "test policy always rejects"));
     policyEngine.run(testPayload);
   }
 
@@ -330,14 +345,14 @@ contract PolicyEngineTest is BaseProxyTest {
     vm.stopPrank();
 
     vm.startPrank(secondTarget);
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(selector, address(policyRejected), "test policy always rejects"));
     policyEngine.run(
       IPolicyEngine.Payload({selector: selector, sender: secondTarget, data: new bytes(0), context: new bytes(0)})
     );
   }
 
   function test_run_targetDefaultPolicyTakesPrecedenceOverGlobalDefaultPolicy() public {
-    policyEngine.setTargetDefaultPolicyResult(target, IPolicyEngine.PolicyResult.Allowed);
+    policyEngine.setTargetDefaultPolicyAllow(target, true); // true = allow by default
 
     bool success;
 

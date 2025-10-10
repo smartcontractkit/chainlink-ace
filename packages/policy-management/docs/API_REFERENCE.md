@@ -17,7 +17,6 @@ The `IPolicyEngine` interface defines the core functions for the central orchest
 ```solidity
 enum PolicyResult {
     None,
-    Rejected,
     Allowed,
     Continue
 }
@@ -54,8 +53,8 @@ interface IPolicyEngine is IERC165 {
     function removePolicy(address target, bytes4 selector, address policy) external;
     function getPolicies(address target, bytes4 selector) external view returns (address[] memory);
 
-    function setDefaultPolicyResult(PolicyResult defaultPolicy) external;
-    function setTargetDefaultPolicyResult(address target, PolicyResult defaultPolicy) external;
+    function setDefaultPolicyAllow(bool defaultAllow) external;
+    function setTargetDefaultPolicyAllow(address target, bool defaultAllow) external;
 
     function check(Payload calldata payload) external view;
     function run(Payload calldata payload) external;
@@ -152,8 +151,8 @@ event PolicyAdded(address indexed target, bytes4 indexed selector, address polic
 event PolicyRemoved(address indexed target, bytes4 indexed selector, address policy);
 event ExtractorSet(bytes4 indexed selector, address indexed extractor);
 event PolicyParametersSet(address indexed policy, bytes[] parameters);
-event DefaultPolicyResultSet(PolicyResult defaultPolicy);
-event TargetDefaultPolicyResultSet(address indexed target, PolicyResult defaultPolicy);
+event DefaultPolicyAllowSet(bool defaultAllow);
+event TargetDefaultPolicyAllowSet(address indexed target, bool defaultAllow);
 ```
 
 ## Errors
@@ -162,7 +161,8 @@ event TargetDefaultPolicyResultSet(address indexed target, PolicyResult defaultP
 error TargetNotAttached(address target);
 error TargetAlreadyAttached(address target);
 error PolicyEngineUndefined();
-error PolicyRunRejected(bytes4 selector, address policy);
+error PolicyRunRejected(bytes4 selector, address policy, string rejectReason);
+error PolicyRejected(string rejectReason);
 error PolicyMapperError(address policy, bytes errorReason);
 error PolicyRunError(bytes4 selector, address policy, bytes errorReason);
 error PolicyRunUnauthorizedError(address account);

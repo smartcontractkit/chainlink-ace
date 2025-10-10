@@ -19,7 +19,7 @@ contract PausePolicyTest is BaseProxyTest {
 
     vm.startPrank(deployer);
 
-    policyEngine = _deployPolicyEngine(IPolicyEngine.PolicyResult.Allowed, deployer);
+    policyEngine = _deployPolicyEngine(true, deployer);
 
     PausePolicy pausePolicyImpl = new PausePolicy();
     bytes memory configParamBytes = abi.encode(false); // Initial paused state is false
@@ -35,7 +35,7 @@ contract PausePolicyTest is BaseProxyTest {
     vm.startPrank(deployer);
     pausePolicy.pause();
 
-    vm.expectPartialRevert(IPolicyEngine.PolicyRunRejected.selector);
+    vm.expectRevert(_encodeRejectedRevert(MockToken.transfer.selector, address(pausePolicy), "contract is paused"));
     token.transfer(recipient, 100);
   }
 

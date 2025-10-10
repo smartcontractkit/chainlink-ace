@@ -6,14 +6,14 @@ The Policy Management component provides a powerful and flexible way to enforce 
 
 The ability to add, remove, or reorder policies in the `PolicyEngine` is the most sensitive administrative power in the system. An attacker who gains control over these functions can effectively disable or bypass all compliance rules.
 
-- **Access Control:** Only highly trusted roles, such as a DAO, a multi-sig wallet, or a designated `owner`, MUST be able to call `addPolicy`, `removePolicy`, `setExtractor`, `setPolicyMapper`, and `setDefaultResult`.
+- **Access Control:** Only highly trusted roles, such as a DAO, a multi-sig wallet, or a designated `owner`, MUST be able to call `addPolicy`, `removePolicy`, `setExtractor`, `setPolicyMapper`, and `setDefaultAllow`.
 - **Timelocks:** It is RECOMMENDED that all administrative changes to the `PolicyEngine` are passed through a timelock contract. This creates a delay between the proposal of a change and its execution, giving users time to review the change and exit the system if they do not agree with it.
 
 ## 2. Policy Order Matters
 
 The `PolicyEngine` executes policies for a given function in a specific, ordered sequence. The outcome of the entire chain can change dramatically based on this order.
 
-- **`Allowed` as a Bypass:** A policy that returns `PolicyResult.Allowed` will immediately halt execution and bypass all subsequent policies in the chain. For this reason, permissive policies (like a `BypassPolicy` for admins) should be placed with extreme care, typically at the beginning of the policy chain.
+- **`Allowed` as a Bypass:** A policy that returns `Allowed` will immediately halt execution and bypass all subsequent policies in the chain. For this reason, permissive policies (like a `BypassPolicy` for admins) should be placed with extreme care, typically at the beginning of the policy chain.
 - **Ordering for Restriction:** Restrictive policies should generally be placed before more lenient ones. For example, a `RejectPolicy` for a hard-coded denylist should come before a `VolumePolicy` to ensure the denied user cannot transact at all.
 
 ## 3. Trust in Policy, Extractor, and Mapper Contracts
