@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 contract ComplianceTokenStoreERC3643 {
-  /// @custom:storage-location erc7201:compliance-token-erc20.ComplianceTokenStoreERC4643
+  /// @custom:storage-location erc7201:compliance-token-erc20.ComplianceTokenStoreERC3643
   struct ComplianceTokenStorage {
     string tokenName;
     string tokenSymbol;
@@ -15,7 +15,7 @@ contract ComplianceTokenStoreERC3643 {
     mapping(address userAddress => uint256 amount) frozenTokens;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("compliance-token-erc20.ComplianceTokenStoreERC4643")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("compliance-token-erc20.ComplianceTokenStoreERC3643")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant complianceTokenStorageLocation =

@@ -306,7 +306,8 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     try ICredentialRegistry(credentialRegistry).validate(ccid, credential, context) returns (bool valid) {
       credentialExists = valid;
     } catch {
-      credentialExists = false;
+      // If validation throws, we return false because the credential is not valid despite the value of invert
+      return false;
     }
 
     // For inverted credentials: return true only if credential doesn't exist

@@ -9,6 +9,7 @@ import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidator} from "../src/CredentialRegistryIdentityValidator.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {MockCredentialDataValidator} from "./helpers/MockCredentialDataValidator.sol";
+import {MockCredentialRegistryReverting} from "./helpers/MockCredentialRegistryReverting.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
@@ -490,6 +491,64 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
     vm.expectPartialRevert(ICredentialRequirements.CredentialSourceNotFound.selector);
     s_identityValidator.removeCredentialSource(
       CREDENTIAL_BANK2_KYC, address(s_identityRegistry), address(s_credentialRegistry)
+    );
+  }
+
+  function test_validate_credentialRegistryThrows_invalid() public {
+    address account1 = makeAddr("account1");
+    bytes32 ccid = keccak256("account1");
+
+    // Create a mock credential registry that will throw on validate()
+    MockCredentialRegistryReverting revertingRegistry = new MockCredentialRegistryReverting();
+    revertingRegistry.setShouldRevert(true);
+    revertingRegistry.setRevertMessage("Credential validation error");
+
+    s_identityRegistry.registerIdentity(ccid, account1, "");
+
+    // Add a new credential source using the reverting registry
+    bytes32 CREDENTIAL_TEST = keccak256("test.credential");
+    bytes32[] memory testCredentials = new bytes32[](1);
+    testCredentials[0] = CREDENTIAL_TEST;
+
+    s_identityValidator.addCredentialRequirement(
+      ICredentialRequirements.CredentialRequirementInput(keccak256("TEST_REQ"), testCredentials, 1, false)
+    );
+
+    s_identityValidator.addCredentialSource(
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_TEST, address(s_identityRegistry), address(revertingRegistry), address(0)
+      )
+    );
+
+    assertFalse(s_identityValidator.validate(account1, ""), "Should fail when credential registry throws");
+  }
+
+  function test_validate_credentialRegistryThrowsInverted_invalid() public {
+    address account1 = makeAddr("account1");
+    bytes32 ccid = keccak256("account1");
+
+    MockCredentialRegistryReverting revertingRegistry = new MockCredentialRegistryReverting();
+    revertingRegistry.setShouldRevert(true);
+    revertingRegistry.setRevertMessage("Credential validation error");
+
+    s_identityRegistry.registerIdentity(ccid, account1, "");
+
+    bytes32 CREDENTIAL_BLACKLIST = keccak256("blacklist.credential");
+    bytes32[] memory blacklistCredentials = new bytes32[](1);
+    blacklistCredentials[0] = CREDENTIAL_BLACKLIST;
+
+    s_identityValidator.addCredentialRequirement(
+      ICredentialRequirements.CredentialRequirementInput(keccak256("NOT_BLACKLISTED"), blacklistCredentials, 1, true)
+    );
+
+    s_identityValidator.addCredentialSource(
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_BLACKLIST, address(s_identityRegistry), address(revertingRegistry), address(0)
+      )
+    );
+
+    assertFalse(
+      s_identityValidator.validate(account1, ""), "Should fail when credential registry throws, even with invert=true"
     );
   }
 }
