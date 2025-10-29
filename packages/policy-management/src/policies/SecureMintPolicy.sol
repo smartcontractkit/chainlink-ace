@@ -262,7 +262,10 @@ contract SecureMintPolicy is Policy {
     }
 
     IERC20 token = IERC20(subject);
-    if (amount + token.totalSupply() > totalMintableSupply(uint256(reserve))) {
+    uint8 decimals = $.reservesFeed.decimals();
+    // Scale reserve to token decimals
+    uint256 scaledReserve = uint256(reserve) * (10 ** (token.decimals() - decimals));
+    if (amount + token.totalSupply() > totalMintableSupply(scaledReserve)) {
       revert IPolicyEngine.PolicyRejected("mint would exceed available reserves");
     }
 
