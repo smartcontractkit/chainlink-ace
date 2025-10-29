@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -261,8 +261,11 @@ contract SecureMintPolicy is Policy {
       revert IPolicyEngine.PolicyRejected("reserve data is stale");
     }
 
-    IERC20 token = IERC20(subject);
-    if (amount + token.totalSupply() > totalMintableSupply(uint256(reserve))) {
+    IERC20Metadata token = IERC20Metadata(subject);
+    uint8 decimals = $.reservesFeed.decimals();
+    // Scale reserve to token decimals
+    uint256 scaledReserve = uint256(reserve) * (10 ** (token.decimals() - decimals));
+    if (amount + token.totalSupply() > totalMintableSupply(scaledReserve)) {
       revert IPolicyEngine.PolicyRejected("mint would exceed available reserves");
     }
 
