@@ -120,7 +120,13 @@ interface ICredentialRegistry is ICredentialValidator {
    * @param expiresAt The updated expiration time (MUST be a future timestamp) of the credential, 0 for no expiration.
    * @param context Additional information or authorization to perform the operation.
    */
-  function renewCredential(bytes32 ccid, bytes32 credentialTypeId, uint40 expiresAt, bytes calldata context) external;
+  function renewCredential(
+    bytes32 ccid,
+    bytes32 credentialTypeId,
+    uint40 expiresAt,
+    bytes calldata context
+  )
+    external;
 
   /**
    * @notice Checks if a credential is expired.

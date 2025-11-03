@@ -18,8 +18,9 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     mapping(address policy => address mapper) policyMappers;
     mapping(address target => bool attached) targetAttached;
     mapping(address target => mapping(bytes4 selector => address[] policies)) targetPolicies;
-    mapping(address target => mapping(bytes4 selector => mapping(address policy => bytes32[] policyParameterNames)))
-      targetPolicyParameters;
+    mapping(
+      address target => mapping(bytes4 selector => mapping(address policy => bytes32[] policyParameterNames))
+    ) targetPolicyParameters;
     mapping(address target => bool hasTargetDefault) targetHasDefault;
     mapping(address target => bool targetDefaultPolicyAllow) targetDefaultPolicyAllow;
   }
@@ -122,8 +123,10 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       bytes[] memory policyParameterValues = _policyParameterValues(
         policy, _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy], extractedParameters
       );
-      try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
-      returns (IPolicyEngine.PolicyResult policyResult) {
+      try IPolicy(policy)
+        .run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) returns (
+        IPolicyEngine.PolicyResult policyResult
+      ) {
         if (policyResult == IPolicyEngine.PolicyResult.Allowed) {
           return;
         } // else continue to next policy
@@ -151,12 +154,14 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       bytes[] memory policyParameterValues = _policyParameterValues(
         policy, _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy], extractedParameters
       );
-      try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
-      returns (IPolicyEngine.PolicyResult policyResult) {
+      try IPolicy(policy)
+        .run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) returns (
+        IPolicyEngine.PolicyResult policyResult
+      ) {
         // solhint-disable-next-line no-empty-blocks
-        try IPolicy(policy).postRun(
-          payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context
-        ) {} catch (bytes memory err) {
+        try IPolicy(policy)
+          .postRun(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) {}
+        catch (bytes memory err) {
           revert IPolicyEngine.PolicyPostRunError(payload.selector, policy, err);
         }
         if (policyResult == IPolicyEngine.PolicyResult.Allowed) {
@@ -256,10 +261,7 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
   }
 
   /// @inheritdoc IPolicyEngine
-  function getPolicies(
-    address target,
-    bytes4 selector
-  )
+  function getPolicies(address target, bytes4 selector)
     public
     view
     virtual

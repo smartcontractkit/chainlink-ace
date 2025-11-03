@@ -54,7 +54,12 @@ interface IIdentityRegistry {
    * @param accounts The list of address for the identities on this chain.
    * @param context Additional information or authorization to perform the operation.
    */
-  function registerIdentities(bytes32[] calldata ccids, address[] calldata accounts, bytes calldata context) external;
+  function registerIdentities(
+    bytes32[] calldata ccids,
+    address[] calldata accounts,
+    bytes calldata context
+  )
+    external;
 
   /**
    * @notice Removes an identity.

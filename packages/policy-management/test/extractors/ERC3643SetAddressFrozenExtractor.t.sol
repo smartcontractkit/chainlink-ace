@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {ERC3643SetAddressFrozenExtractor} from
-  "@chainlink/policy-management/extractors/ERC3643SetAddressFrozenExtractor.sol";
+import {
+  ERC3643SetAddressFrozenExtractor
+} from "@chainlink/policy-management/extractors/ERC3643SetAddressFrozenExtractor.sol";
 import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
 
 contract ERC3643SetAddressFrozenExtractorTest is Test {
@@ -26,10 +27,7 @@ contract ERC3643SetAddressFrozenExtractorTest is Test {
 
   function test_extract_setAddressFrozen_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IToken.setAddressFrozen.selector,
-      data: abi.encode(holder, true),
-      sender: deployer,
-      context: ""
+      selector: IToken.setAddressFrozen.selector, data: abi.encode(holder, true), sender: deployer, context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -44,10 +42,7 @@ contract ERC3643SetAddressFrozenExtractorTest is Test {
 
   function test_extract_transfer_fails() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IERC20.transfer.selector,
-      data: abi.encode(holder, 123),
-      sender: deployer,
-      context: ""
+      selector: IERC20.transfer.selector, data: abi.encode(holder, 123), sender: deployer, context: ""
     });
 
     vm.expectPartialRevert(IPolicyEngine.UnsupportedSelector.selector);

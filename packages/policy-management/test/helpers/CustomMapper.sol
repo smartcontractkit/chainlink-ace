@@ -11,7 +11,9 @@ contract CustomMapper is IMapper {
     s_mappedParameters = mappedParameters;
   }
 
-  function map(IPolicyEngine.Parameter[] calldata /*extractedParameters*/ )
+  function map(
+    IPolicyEngine.Parameter[] calldata /*extractedParameters*/
+  )
     external
     view
     override

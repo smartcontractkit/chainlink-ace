@@ -4,8 +4,9 @@ pragma solidity 0.8.26;
 import {PolicyEngine} from "../src/core/PolicyEngine.sol";
 import {PolicyFactory} from "../src/core/PolicyFactory.sol";
 import {PolicyAlwaysAllowed} from "./helpers/PolicyAlwaysAllowed.sol";
-import {CredentialRegistryIdentityValidatorPolicy} from
-  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
+import {
+  CredentialRegistryIdentityValidatorPolicy
+} from "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
 import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
 import {Test} from "forge-std/Test.sol";
 

@@ -25,10 +25,7 @@ contract ERC3643MintBurnExtractorTest is Test {
 
   function test_extract_mint_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IToken.mint.selector,
-      data: abi.encode(recipient, 123),
-      sender: deployer,
-      context: ""
+      selector: IToken.mint.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -43,10 +40,7 @@ contract ERC3643MintBurnExtractorTest is Test {
 
   function test_extract_burn_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IToken.burn.selector,
-      data: abi.encode(recipient, 123),
-      sender: deployer,
-      context: ""
+      selector: IToken.burn.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -61,10 +55,7 @@ contract ERC3643MintBurnExtractorTest is Test {
 
   function test_extract_transfer_fails() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IERC20.transfer.selector,
-      data: abi.encode(recipient, 123),
-      sender: deployer,
-      context: ""
+      selector: IERC20.transfer.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
     });
 
     vm.expectPartialRevert(IPolicyEngine.UnsupportedSelector.selector);

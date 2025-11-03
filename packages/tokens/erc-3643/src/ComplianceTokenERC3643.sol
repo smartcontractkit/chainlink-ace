@@ -91,10 +91,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev Increases the allowance granted to `_spender` by the caller.
    *  This is an OpenZeppelin extension to ERC20, not part of the core ERC20 standard.
    */
-  function increaseAllowance(
-    address _spender,
-    uint256 _addedValue
-  )
+  function increaseAllowance(address _spender, uint256 _addedValue)
     external
     virtual
     whenNotPaused
@@ -147,7 +144,13 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-setOnchainID}.
    *  if _onchainID is set at zero address it means no ONCHAINID is bound to this token
    */
-  function setOnchainID(address /*_onchainID*/ ) external pure override {
+  function setOnchainID(
+    address /*_onchainID*/
+  )
+    external
+    pure
+    override
+  {
     revert("Not implemented");
   }
 
@@ -253,7 +256,13 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
   /**
    *  @dev See {IToken-batchFreezePartialTokens}.
    */
-  function batchFreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+  function batchFreezePartialTokens(
+    address[] calldata _userAddresses,
+    uint256[] calldata _amounts
+  )
+    external
+    override
+  {
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       freezePartialTokens(_userAddresses[i], _amounts[i]);
     }
@@ -262,7 +271,13 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
   /**
    *  @dev See {IToken-batchUnfreezePartialTokens}.
    */
-  function batchUnfreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+  function batchUnfreezePartialTokens(
+    address[] calldata _userAddresses,
+    uint256[] calldata _amounts
+  )
+    external
+    override
+  {
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       unfreezePartialTokens(_userAddresses[i], _amounts[i]);
     }
@@ -462,14 +477,26 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
   /**
    *  @dev See {IToken-setIdentityRegistry}.
    */
-  function setIdentityRegistry(address /*_identityRegistry*/ ) public pure override {
+  function setIdentityRegistry(
+    address /*_identityRegistry*/
+  )
+    public
+    pure
+    override
+  {
     revert("Not implemented");
   }
 
   /**
    *  @dev See {IToken-setCompliance}.
    */
-  function setCompliance(address /*_compliance*/ ) public pure override {
+  function setCompliance(
+    address /*_compliance*/
+  )
+    public
+    pure
+    override
+  {
     revert("Not implemented");
   }
 

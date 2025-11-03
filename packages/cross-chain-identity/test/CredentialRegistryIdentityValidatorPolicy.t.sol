@@ -91,8 +91,10 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
     ICredentialRequirements.CredentialRequirementInput memory credentialRequirementInputs =
       ICredentialRequirements.CredentialRequirementInput(REQUIREMENT_KYC, s_credentials_kyc, 1, false);
 
-    ICredentialRequirements.CredentialSourceInput memory credentialSourceInput = ICredentialRequirements
-      .CredentialSourceInput(CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(0));
+    ICredentialRequirements.CredentialSourceInput memory credentialSourceInput =
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(0)
+      );
 
     policy.addCredentialSource(credentialSourceInput);
     policy.addCredentialRequirement(credentialRequirementInputs);

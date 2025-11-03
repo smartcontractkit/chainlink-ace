@@ -211,14 +211,20 @@ contract CredentialRegistry is PolicyProtected, ICredentialRegistry {
     return true;
   }
 
-  function _validate(bytes32 ccid, bytes32 credentialTypeId, bytes calldata /*context*/ ) internal view returns (bool) {
+  function _validate(
+    bytes32 ccid,
+    bytes32 credentialTypeId,
+    bytes calldata /*context*/
+  )
+    internal
+    view
+    returns (bool)
+  {
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
     for (uint256 i = 0; i < length; i++) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
-        return (
-          _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt == 0
-            || _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt > block.timestamp
-        );
+        return (_credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt == 0
+            || _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt > block.timestamp);
       }
     }
     return false;

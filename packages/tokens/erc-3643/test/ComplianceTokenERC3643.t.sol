@@ -13,13 +13,16 @@ import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
 import {VolumePolicy} from "@chainlink/policy-management/policies/VolumePolicy.sol";
 import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
-import {ERC3643FreezeUnfreezeExtractor} from
-  "@chainlink/policy-management/extractors/ERC3643FreezeUnfreezeExtractor.sol";
-import {ERC3643ForcedTransferExtractor} from
-  "@chainlink/policy-management/extractors/ERC3643ForcedTransferExtractor.sol";
+import {
+  ERC3643FreezeUnfreezeExtractor
+} from "@chainlink/policy-management/extractors/ERC3643FreezeUnfreezeExtractor.sol";
+import {
+  ERC3643ForcedTransferExtractor
+} from "@chainlink/policy-management/extractors/ERC3643ForcedTransferExtractor.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
-import {ERC3643SetAddressFrozenExtractor} from
-  "@chainlink/policy-management/extractors/ERC3643SetAddressFrozenExtractor.sol";
+import {
+  ERC3643SetAddressFrozenExtractor
+} from "@chainlink/policy-management/extractors/ERC3643SetAddressFrozenExtractor.sol";
 
 contract ComplianceTokenERC3643Test is BaseProxyTest {
   PolicyEngine internal s_policyEngine;

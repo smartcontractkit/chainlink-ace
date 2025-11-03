@@ -74,7 +74,13 @@ contract IdentityRegistry is PolicyProtected, IIdentityRegistry {
     }
   }
 
-  function _registerIdentity(bytes32 ccid, address account, bytes calldata /*context*/ ) internal {
+  function _registerIdentity(
+    bytes32 ccid,
+    address account,
+    bytes calldata /*context*/
+  )
+    internal
+  {
     if (ccid == bytes32(0)) {
       revert InvalidIdentityConfiguration("CCID cannot be empty");
     }
