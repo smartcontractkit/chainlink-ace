@@ -76,25 +76,11 @@ abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable
 
   /// @inheritdoc IPolicy
   // solhint-disable-next-line no-empty-blocks
-  function onInstall(
-    bytes4 /*selector*/
-  )
-    public
-    virtual
-    override
-    onlyPolicyEngine
-  {}
+  function onInstall(bytes4 /*selector*/ ) public virtual override onlyPolicyEngine {}
 
   /// @inheritdoc IPolicy
   // solhint-disable-next-line no-empty-blocks
-  function onUninstall(
-    bytes4 /*selector*/
-  )
-    public
-    virtual
-    override
-    onlyPolicyEngine
-  {}
+  function onUninstall(bytes4 /*selector*/ ) public virtual override onlyPolicyEngine {}
 
   function run(
     address caller,
@@ -120,8 +106,7 @@ abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable
     virtual
     override
     onlyPolicyEngine
-    // solhint-disable-next-line no-empty-blocks
-
+  // solhint-disable-next-line no-empty-blocks
   {}
 
   /**

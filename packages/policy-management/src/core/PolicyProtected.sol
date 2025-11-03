@@ -57,8 +57,9 @@ abstract contract PolicyProtected is Initializable, OwnableUpgradeable, ERC165Up
       revert IPolicyEngine.PolicyEngineUndefined();
     }
     bytes memory context = getContext();
-    _policyProtectedStorage().policyEngine
-      .run(IPolicyEngine.Payload({selector: msg.sig, sender: msg.sender, data: msg.data[4:], context: context}));
+    _policyProtectedStorage().policyEngine.run(
+      IPolicyEngine.Payload({selector: msg.sig, sender: msg.sender, data: msg.data[4:], context: context})
+    );
     _;
     if (context.length > 0) {
       clearContext();
@@ -73,8 +74,9 @@ abstract contract PolicyProtected is Initializable, OwnableUpgradeable, ERC165Up
     if (address(_policyProtectedStorage().policyEngine) == address(0)) {
       revert IPolicyEngine.PolicyEngineUndefined();
     }
-    _policyProtectedStorage().policyEngine
-      .run(IPolicyEngine.Payload({selector: msg.sig, sender: msg.sender, data: msg.data[4:], context: context}));
+    _policyProtectedStorage().policyEngine.run(
+      IPolicyEngine.Payload({selector: msg.sig, sender: msg.sender, data: msg.data[4:], context: context})
+    );
     _;
   }
 

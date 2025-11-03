@@ -166,8 +166,9 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
       }
     }
     address dataValidator = input.dataValidator;
-    _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId]
-    .push(CredentialSource(identityRegistry, credentialRegistry, dataValidator));
+    _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId].push(
+      CredentialSource(identityRegistry, credentialRegistry, dataValidator)
+    );
     emit CredentialSourceAdded(credentialTypeId, identityRegistry, credentialRegistry, dataValidator);
   }
 
@@ -272,9 +273,11 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
         continue; // identity not found in this registry
       }
 
-      if (_validateCredentialWithRegistry(
+      if (
+        _validateCredentialWithRegistry(
           ccid, account, source.credentialRegistry, source.dataValidator, credentialTypeId, invert, context
-        )) {
+        )
+      ) {
         validations++;
       }
       if (validations >= minValidations) {
@@ -325,10 +328,9 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     // Validate credential data
     bytes memory credentialData = ICredentialRegistry(credentialRegistry).getCredential(ccid, credential).credentialData;
 
-    try ICredentialDataValidator(dataValidator)
-      .validateCredentialData(ccid, account, credential, credentialData, context) returns (
-      bool valid
-    ) {
+    try ICredentialDataValidator(dataValidator).validateCredentialData(
+      ccid, account, credential, credentialData, context
+    ) returns (bool valid) {
       return valid;
     } catch {
       return false;

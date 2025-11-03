@@ -15,8 +15,7 @@ contract MaxPolicy is Policy {
   }
 
   // keccak256(abi.encode(uint256(keccak256("policy-management.MaxPolicy")) - 1)) & ~bytes32(uint256(0xff))
-  bytes32 private constant MaxPolicyStorageLocation =
-    0x0c09e934710ad0d4b287c3ebc989bdabd3ce7d8fae49ce825c7ca38c52419400;
+  bytes32 private constant MaxPolicyStorageLocation = 0x0c09e934710ad0d4b287c3ebc989bdabd3ce7d8fae49ce825c7ca38c52419400;
 
   function _getMaxPolicyStorage() private pure returns (MaxPolicyStorage storage $) {
     assembly {

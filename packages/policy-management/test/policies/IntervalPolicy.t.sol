@@ -13,7 +13,7 @@ contract IntervalPolicyTest is BaseProxyTest {
   MockToken public token;
   address public deployer;
   address public recipient;
-  uint256 public OFFSET_TIMESTAMP = 1737470407; //  Tue Jan 21 2025 14:40:07
+  uint256 public OFFSET_TIMESTAMP = 1737470407; // 	Tue Jan 21 2025 14:40:07
 
   function setUp() public {
     deployer = makeAddr("deployer");
@@ -52,14 +52,7 @@ contract IntervalPolicyTest is BaseProxyTest {
     return currentTimestamp - (hoursToDecrease * 3600);
   }
 
-  function generateTimestampForTargetDayAndHour(
-    uint256 targetDay,
-    uint256 targetHour
-  )
-    private
-    view
-    returns (uint256)
-  {
+  function generateTimestampForTargetDayAndHour(uint256 targetDay, uint256 targetHour) private view returns (uint256) {
     uint256 currentTimestamp = block.timestamp;
     uint256 timestampWithHour = generateTimestampForTargetHour(targetHour);
     uint256 currentDay = (currentTimestamp / 86400 + 4) % 7;

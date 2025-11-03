@@ -9,9 +9,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
 import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
 import {IdentityRegistry} from "@chainlink/cross-chain-identity/IdentityRegistry.sol";
 import {CredentialRegistry} from "@chainlink/cross-chain-identity/CredentialRegistry.sol";
-import {
-  CredentialRegistryIdentityValidatorPolicy
-} from "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
+import {CredentialRegistryIdentityValidatorPolicy} from
+  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
 import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
 
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";

@@ -4,9 +4,8 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {
-  ERC3643ForcedTransferExtractor
-} from "@chainlink/policy-management/extractors/ERC3643ForcedTransferExtractor.sol";
+import {ERC3643ForcedTransferExtractor} from
+  "@chainlink/policy-management/extractors/ERC3643ForcedTransferExtractor.sol";
 import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
 
 contract ERC3643ForcedTransferExtractorTest is Test {
@@ -48,7 +47,10 @@ contract ERC3643ForcedTransferExtractorTest is Test {
 
   function test_extract_transfer_fails() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IERC20.transfer.selector, data: abi.encode(recipient, 3643), sender: deployer, context: ""
+      selector: IERC20.transfer.selector,
+      data: abi.encode(recipient, 3643),
+      sender: deployer,
+      context: ""
     });
 
     vm.expectPartialRevert(IPolicyEngine.UnsupportedSelector.selector);

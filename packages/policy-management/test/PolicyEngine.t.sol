@@ -180,9 +180,8 @@ contract PolicyEngineTest is BaseProxyTest {
   }
 
   function test_run_whenPolicyRevertsTransactionReverts() public {
-    PolicyFailingRun policyFailingRun = PolicyFailingRun(
-      _deployPolicy(address(policyFailingRunImpl), address(policyEngine), address(this), new bytes(0))
-    );
+    PolicyFailingRun policyFailingRun =
+      PolicyFailingRun(_deployPolicy(address(policyFailingRunImpl), address(policyEngine), address(this), new bytes(0)));
     PolicyAlwaysAllowed policyAllowed = PolicyAlwaysAllowed(
       _deployPolicy(address(policyAlwaysAllowedImpl), address(policyEngine), address(this), abi.encode(1))
     );

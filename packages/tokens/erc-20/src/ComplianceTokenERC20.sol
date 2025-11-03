@@ -158,11 +158,7 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtected, ComplianceToken
     return getComplianceTokenStorage().decimals;
   }
 
-  function freeze(address account, uint256 amount, bytes calldata context)
-    public
-    virtual
-    runPolicyWithContext(context)
-  {
+  function freeze(address account, uint256 amount, bytes calldata context) public virtual runPolicyWithContext(context) {
     getComplianceTokenStorage().frozenBalances[account] += amount;
     emit Frozen(account, amount);
   }

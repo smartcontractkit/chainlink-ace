@@ -69,6 +69,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// @dev interface
 interface IToken is IERC20 {
   /// events
+
   /**
    *  this event is emitted when the token information is updated.
    *  the event is emitted by the token init function and by the setTokenInformation function
@@ -292,13 +293,7 @@ interface IToken is IERC20 {
    *  emits a `RecoverySuccess` event if the recovery process is successful
    *  emits a `RecoveryFails` event if the recovery process fails
    */
-  function recoveryAddress(
-    address _lostWallet,
-    address _newWallet,
-    address _investorOnchainID
-  )
-    external
-    returns (bool);
+  function recoveryAddress(address _lostWallet, address _newWallet, address _investorOnchainID) external returns (bool);
 
   /**
    *  @dev function allowing to issue transfers in batch

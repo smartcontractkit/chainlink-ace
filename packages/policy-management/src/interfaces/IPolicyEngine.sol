@@ -188,13 +188,7 @@ interface IPolicyEngine {
    * @param policy The policy address.
    * @param policyParameterNames The parameter names for the policy.
    */
-  function addPolicy(
-    address target,
-    bytes4 selector,
-    address policy,
-    bytes32[] calldata policyParameterNames
-  )
-    external;
+  function addPolicy(address target, bytes4 selector, address policy, bytes32[] calldata policyParameterNames) external;
 
   /**
    * @notice Adds a policy to the policy engine at a specific position.

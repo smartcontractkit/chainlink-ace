@@ -14,23 +14,19 @@ import {CredentialRegistry} from "@chainlink/cross-chain-identity/CredentialRegi
 
 // Policies
 import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
-import {
-  CredentialRegistryIdentityValidatorPolicy
-} from "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
+import {CredentialRegistryIdentityValidatorPolicy} from
+  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
 import {SanctionsPolicy} from "../../../getting_started/advanced/SanctionsPolicy.sol";
 import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
 
 // Extractors
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
-import {
-  ComplianceTokenMintBurnExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
-import {
-  ComplianceTokenFreezeUnfreezeExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
-import {
-  ComplianceTokenForceTransferExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
+import {ComplianceTokenMintBurnExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
+import {ComplianceTokenFreezeUnfreezeExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
+import {ComplianceTokenForceTransferExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
 
 // Interfaces
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";

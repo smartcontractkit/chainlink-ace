@@ -71,27 +71,11 @@ contract MockCredentialRegistryReverting is ICredentialRegistry {
     revert("Not implemented");
   }
 
-  function revokeCredential(
-    bytes32,
-    /*ccid*/
-    bytes32,
-    /*credentialTypeId*/
-    bytes calldata /*context*/
-  )
-    external
-  {
+  function revokeCredential(bytes32, /*ccid*/ bytes32, /*credentialTypeId*/ bytes calldata /*context*/ ) external {
     revert("Not implemented");
   }
 
-  function removeCredential(
-    bytes32,
-    /*ccid*/
-    bytes32,
-    /*credentialTypeId*/
-    bytes calldata /*context*/
-  )
-    external
-  {
+  function removeCredential(bytes32, /*ccid*/ bytes32, /*credentialTypeId*/ bytes calldata /*context*/ ) external {
     revert("Not implemented");
   }
 
@@ -117,37 +101,15 @@ contract MockCredentialRegistryReverting is ICredentialRegistry {
     revert("Not implemented");
   }
 
-  function getCredentialTypes(
-    bytes32 /*ccid*/
-  )
-    external
-    view
-    returns (bytes32[] memory)
-  {
+  function getCredentialTypes(bytes32 /*ccid*/ ) external view returns (bytes32[] memory) {
     revert("Not implemented");
   }
 
-  function hasCredential(
-    bytes32,
-    /*ccid*/
-    bytes32 /*credentialTypeId*/
-  )
-    external
-    view
-    returns (bool)
-  {
+  function hasCredential(bytes32, /*ccid*/ bytes32 /*credentialTypeId*/ ) external view returns (bool) {
     revert("Not implemented");
   }
 
-  function isCredentialExpired(
-    bytes32,
-    /*ccid*/
-    bytes32 /*credentialTypeId*/
-  )
-    external
-    view
-    returns (bool)
-  {
+  function isCredentialExpired(bytes32, /*ccid*/ bytes32 /*credentialTypeId*/ ) external view returns (bool) {
     revert("Not implemented");
   }
 
@@ -163,13 +125,7 @@ contract MockCredentialRegistryReverting is ICredentialRegistry {
     revert("Not implemented");
   }
 
-  function supportsInterface(
-    bytes4 /*interfaceId*/
-  )
-    external
-    pure
-    returns (bool)
-  {
+  function supportsInterface(bytes4 /*interfaceId*/ ) external pure returns (bool) {
     return true;
   }
 }

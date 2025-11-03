@@ -65,6 +65,7 @@ import "../../../onchain-id/interface/IIdentity.sol";
 
 interface IIdentityRegistryStorage {
   /// events
+
   /**
    *  this event is emitted when an Identity is registered into the storage contract.
    *  the event is emitted by the 'registerIdentity' function

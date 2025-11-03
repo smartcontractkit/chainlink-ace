@@ -10,15 +10,12 @@ import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPo
 import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
 import {VolumePolicy} from "@chainlink/policy-management/policies/VolumePolicy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
-import {
-  ComplianceTokenMintBurnExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
-import {
-  ComplianceTokenFreezeUnfreezeExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
-import {
-  ComplianceTokenForceTransferExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
+import {ComplianceTokenMintBurnExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
+import {ComplianceTokenFreezeUnfreezeExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
+import {ComplianceTokenForceTransferExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 
 contract ComplianceTokenERC20Test is BaseProxyTest {

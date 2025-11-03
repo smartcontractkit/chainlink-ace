@@ -86,14 +86,7 @@ interface IERC734 {
    * Triggers Event: ExecutionRequested
    * Triggers on direct execution Event: Executed
    */
-  function execute(
-    address _to,
-    uint256 _value,
-    bytes calldata _data
-  )
-    external
-    payable
-    returns (uint256 executionId);
+  function execute(address _to, uint256 _value, bytes calldata _data) external payable returns (uint256 executionId);
 
   /**
    * @dev Returns the full key data, if present in the identity.

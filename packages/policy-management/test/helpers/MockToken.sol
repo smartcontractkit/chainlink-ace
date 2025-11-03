@@ -38,16 +38,7 @@ contract MockToken is Initializable, PolicyProtected {
     s_balances[to] += amount;
   }
 
-  function transferFrom(
-    address,
-    /*from*/
-    address to,
-    uint256 amount
-  )
-    external
-    whenNotPaused
-    runPolicy
-  {
+  function transferFrom(address, /*from*/ address to, uint256 amount) external whenNotPaused runPolicy {
     s_balances[to] += amount;
   }
 

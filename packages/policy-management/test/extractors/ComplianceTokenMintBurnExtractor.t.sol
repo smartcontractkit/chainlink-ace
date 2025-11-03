@@ -4,9 +4,8 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {
-  ComplianceTokenMintBurnExtractor
-} from "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
+import {ComplianceTokenMintBurnExtractor} from
+  "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
 import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenERC20.sol";
 
 contract ComplianceTokenMintBurnExtractorTest is Test {
@@ -27,7 +26,10 @@ contract ComplianceTokenMintBurnExtractorTest is Test {
 
   function test_extract_mint_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: ComplianceTokenERC20.mint.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
+      selector: ComplianceTokenERC20.mint.selector,
+      data: abi.encode(recipient, 123),
+      sender: deployer,
+      context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -42,7 +44,10 @@ contract ComplianceTokenMintBurnExtractorTest is Test {
 
   function test_extract_burn_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: ComplianceTokenERC20.burn.selector, data: abi.encode(123), sender: recipient, context: ""
+      selector: ComplianceTokenERC20.burn.selector,
+      data: abi.encode(123),
+      sender: recipient,
+      context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -57,7 +62,10 @@ contract ComplianceTokenMintBurnExtractorTest is Test {
 
   function test_extract_burnFrom_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: ComplianceTokenERC20.burnFrom.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
+      selector: ComplianceTokenERC20.burnFrom.selector,
+      data: abi.encode(recipient, 123),
+      sender: deployer,
+      context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -72,7 +80,10 @@ contract ComplianceTokenMintBurnExtractorTest is Test {
 
   function test_extract_transfer_fails() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: ComplianceTokenERC20.transfer.selector, data: abi.encode(recipient, 123), sender: deployer, context: ""
+      selector: ComplianceTokenERC20.transfer.selector,
+      data: abi.encode(recipient, 123),
+      sender: deployer,
+      context: ""
     });
 
     vm.expectPartialRevert(IPolicyEngine.UnsupportedSelector.selector);

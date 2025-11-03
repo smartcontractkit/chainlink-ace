@@ -25,7 +25,10 @@ contract ERC20ApproveExtractorTest is Test {
 
   function test_extract_approve_succeeds() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IERC20.approve.selector, data: abi.encode(recipient, 999), sender: deployer, context: ""
+      selector: IERC20.approve.selector,
+      data: abi.encode(recipient, 999),
+      sender: deployer,
+      context: ""
     });
 
     IPolicyEngine.Parameter[] memory params = extractor.extract(payload);
@@ -43,7 +46,10 @@ contract ERC20ApproveExtractorTest is Test {
 
   function test_extract_transfer_fails() public {
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: IERC20.transfer.selector, data: abi.encode(recipient, 999), sender: deployer, context: ""
+      selector: IERC20.transfer.selector,
+      data: abi.encode(recipient, 999),
+      sender: deployer,
+      context: ""
     });
 
     vm.expectPartialRevert(IPolicyEngine.UnsupportedSelector.selector);
