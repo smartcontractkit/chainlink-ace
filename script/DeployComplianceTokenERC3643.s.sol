@@ -27,7 +27,7 @@ contract DeployComplianceTokenERC3643 is Script {
     // Deploy a PolicyEngine through proxy for identity registries and attach OnlyOwnerPolicy to administrative methods
     PolicyEngine policyEngineImpl = new PolicyEngine();
     bytes memory policyEngineData =
-      abi.encodeWithSelector(PolicyEngine.initialize.selector, IPolicyEngine.PolicyResult.Allowed);
+      abi.encodeWithSelector(PolicyEngine.initialize.selector, IPolicyEngine.PolicyResult.Allowed, tokenOwner);
     ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
     PolicyEngine policyEngine = PolicyEngine(address(policyEngineProxy));
 
@@ -35,13 +35,13 @@ contract DeployComplianceTokenERC3643 is Script {
     // CredentialRegistryIdentityValidatorPolicy
     IdentityRegistry identityRegistryImpl = new IdentityRegistry();
     bytes memory identityRegistryData =
-      abi.encodeWithSelector(IdentityRegistry.initialize.selector, address(policyEngine));
+      abi.encodeWithSelector(IdentityRegistry.initialize.selector, address(policyEngine), tokenOwner);
     ERC1967Proxy identityRegistryProxy = new ERC1967Proxy(address(identityRegistryImpl), identityRegistryData);
     IdentityRegistry identityRegistry = IdentityRegistry(address(identityRegistryProxy));
 
     CredentialRegistry credentialRegistryImpl = new CredentialRegistry();
     bytes memory credentialRegistryData =
-      abi.encodeWithSelector(CredentialRegistry.initialize.selector, address(policyEngine));
+      abi.encodeWithSelector(CredentialRegistry.initialize.selector, address(policyEngine), tokenOwner);
     ERC1967Proxy credentialRegistryProxy = new ERC1967Proxy(address(credentialRegistryImpl), credentialRegistryData);
     CredentialRegistry credentialRegistry = CredentialRegistry(address(credentialRegistryProxy));
     bytes32 CREDENTIAL_KYC = keccak256("common.KYC");
