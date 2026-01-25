@@ -215,4 +215,7 @@ Explore our example token contracts to see how these components work together in
 
 ## Contributing & Feedback
 
-We welcome community **feedback, audits, and contributions**. If you have additional compliance requirements or ideas for new features, please feel free to propose expansions or new modules.
+We welcome community **feedback, audits, and contributions**.
+
+- **How to contribute**: see [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- **Security issues**: see [`SECURITY.md`](./SECURITY.md) (please report responsibly)
