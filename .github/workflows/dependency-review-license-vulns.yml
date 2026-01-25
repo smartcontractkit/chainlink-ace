@@ -1,0 +1,30 @@
+name: Dependency Review - License/Vulns
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency review (licenses + vulnerabilities)
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail PRs that introduce high-severity vulnerabilities.
+          fail-on-severity: high
+
+          # Conservative default license denylist; adjust to your needs.
+          # NOTE: SPDX IDs; dependency-review-action compares against package metadata.
+          deny-licenses: >
+            AGPL-3.0,
+            GPL-3.0,
+            LGPL-3.0
+
+          comment-summary-in-pr: always
+
