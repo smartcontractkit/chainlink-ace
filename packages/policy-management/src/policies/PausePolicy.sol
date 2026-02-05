@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -9,15 +9,23 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * @notice A policy that can be toggled to pause or unpause execution.
  */
 contract PausePolicy is Policy {
-  /// @custom:storage-location erc7201:policy-management.PausePolicy
+  string public constant override typeAndVersion = "PausePolicy 1.0.0";
+
+  /**
+   * @notice Emitted when the pause state of the policy is changed.
+   * @param paused The new paused state of the policy.
+   */
+  event PauseStateChanged(bool indexed paused);
+
+  /// @custom:storage-location erc7201:chainlink.ace.PausePolicy
   struct PausePolicyStorage {
     /// @notice Indicates whether the policy is currently paused.
     bool paused;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.PausePolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.PausePolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant PausePolicyStorageLocation =
-    0xaefcbf6c17ae27ba80ec8ef292ac0e1afc8fd1fc954a25eef0882c51e609eb00;
+    0x01c1af587392cfb490379a9a612447321a931c0d85a3a629efe3ab1cd68d0200;
 
   function _getPausePolicyStorage() private pure returns (PausePolicyStorage storage $) {
     assembly {
@@ -41,18 +49,11 @@ contract PausePolicy is Policy {
     $.paused = abi.decode(parameters, (bool));
   }
 
-  /// @notice Sets the paused state of the policy.
-  function pause() public onlyOwner {
+  function setPausedState(bool paused) public onlyOwner {
     PausePolicyStorage storage $ = _getPausePolicyStorage();
-    require(!$.paused, "already paused");
-    $.paused = true;
-  }
-
-  /// @notice Sets the paused state of the policy to false.
-  function unpause() public onlyOwner {
-    PausePolicyStorage storage $ = _getPausePolicyStorage();
-    require($.paused, "already unpaused");
-    $.paused = false;
+    require($.paused != paused, "new paused state must be different from current paused state");
+    $.paused = paused;
+    emit PauseStateChanged($.paused);
   }
 
   /**

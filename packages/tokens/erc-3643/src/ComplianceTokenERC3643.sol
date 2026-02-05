@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
 import {IIdentityRegistry} from "../../../vendor/erc-3643/registry/interface/IIdentityRegistry.sol";
 import {IModularCompliance} from "../../../vendor/erc-3643/compliance/modular/IModularCompliance.sol";
 import {ComplianceTokenStoreERC3643} from "./ComplianceTokenStoreERC3643.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTokenStoreERC3643, IToken {
+contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, ComplianceTokenStoreERC3643, IToken {
   string private constant TOKEN_VERSION = "1.0.0";
 
   /// modifiers
@@ -18,6 +18,8 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
     require(!getComplianceTokenStorage().tokenPaused, "Pausable: paused");
     _;
   }
+
+  error LengthMismatch();
 
   /**
    * @dev Initializes the contract with the provided token metadata and assigns policy engine.
@@ -171,6 +173,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchTransfer}.
    */
   function batchTransfer(address[] calldata _toList, uint256[] calldata _amounts) external override {
+    if (_toList.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _toList.length; i++) {
       transfer(_toList[i], _amounts[i]);
     }
@@ -218,6 +221,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
     external
     override
   {
+    if (_fromList.length != _toList.length || _toList.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _fromList.length; i++) {
       forcedTransfer(_fromList[i], _toList[i], _amounts[i]);
     }
@@ -227,6 +231,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchMint}.
    */
   function batchMint(address[] calldata _toList, uint256[] calldata _amounts) external override {
+    if (_toList.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _toList.length; i++) {
       mint(_toList[i], _amounts[i]);
     }
@@ -236,6 +241,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchBurn}.
    */
   function batchBurn(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+    if (_userAddresses.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       burn(_userAddresses[i], _amounts[i]);
     }
@@ -245,6 +251,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchSetAddressFrozen}.
    */
   function batchSetAddressFrozen(address[] calldata _userAddresses, bool[] calldata _freeze) external override {
+    if (_userAddresses.length != _freeze.length) revert LengthMismatch();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       setAddressFrozen(_userAddresses[i], _freeze[i]);
     }
@@ -254,6 +261,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchFreezePartialTokens}.
    */
   function batchFreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+    if (_userAddresses.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       freezePartialTokens(_userAddresses[i], _amounts[i]);
     }
@@ -263,6 +271,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
    *  @dev See {IToken-batchUnfreezePartialTokens}.
    */
   function batchUnfreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+    if (_userAddresses.length != _amounts.length) revert LengthMismatch();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
       unfreezePartialTokens(_userAddresses[i], _amounts[i]);
     }
@@ -482,10 +491,6 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtected, ComplianceTok
 
   function getCCIPAdmin() public view virtual returns (address) {
     return owner();
-  }
-
-  function supportsInterface(bytes4 interfaceId) public view virtual override(PolicyProtected) returns (bool) {
-    return super.supportsInterface(interfaceId);
   }
 
   /**

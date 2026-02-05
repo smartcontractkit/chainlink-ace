@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
@@ -60,17 +60,25 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     // to protect mint/burn with admin list
     OnlyAuthorizedSenderPolicy minterBurnerListImpl = new OnlyAuthorizedSenderPolicy();
     minterBurnerList = OnlyAuthorizedSenderPolicy(
-      _deployPolicy(address(minterBurnerListImpl), address(s_policyEngine), s_owner, new bytes(0))
+      _deployPolicy(address(minterBurnerListImpl), address(s_policyEngine), address(s_policyEngine), new bytes(0))
     );
-    minterBurnerList.authorizeSender(s_owner);
-    minterBurnerList.authorizeSender(s_bridge);
+    s_policyEngine.setPolicyConfiguration(
+      address(minterBurnerList), 0, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(s_owner)
+    );
+    s_policyEngine.setPolicyConfiguration(
+      address(minterBurnerList), 1, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(s_bridge)
+    );
     // to protect freezing features with admin list
     OnlyAuthorizedSenderPolicy freezingListImpl = new OnlyAuthorizedSenderPolicy();
     freezingList = OnlyAuthorizedSenderPolicy(
-      _deployPolicy(address(freezingListImpl), address(s_policyEngine), s_owner, new bytes(0))
+      _deployPolicy(address(freezingListImpl), address(s_policyEngine), address(s_policyEngine), new bytes(0))
     );
-    freezingList.authorizeSender(s_owner);
-    freezingList.authorizeSender(s_enforcer);
+    s_policyEngine.setPolicyConfiguration(
+      address(freezingList), 0, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(s_owner)
+    );
+    s_policyEngine.setPolicyConfiguration(
+      address(freezingList), 1, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(s_enforcer)
+    );
     // to enforce transaction limits
     VolumePolicy volumePolicyImpl = new VolumePolicy();
     volumePolicy =
@@ -126,13 +134,12 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
   function test_token_name_notOwner_failure() public {
     vm.startPrank(s_bridge);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.setName.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
-      )
+    _expectRejectedRevert(
+      address(onlyOwnerPolicy),
+      "caller is not the policy owner",
+      IToken.setName.selector,
+      s_bridge,
+      abi.encode("New Name")
     );
     s_token.setName("New Name");
   }
@@ -140,13 +147,8 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
   function test_token_symbol_notOwner_failure() public {
     vm.startPrank(s_bridge);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.setSymbol.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
-      )
+    _expectRejectedRevert(
+      address(onlyOwnerPolicy), "caller is not the policy owner", IToken.setSymbol.selector, s_bridge, abi.encode("NME")
     );
     s_token.setSymbol("NME");
   }
@@ -179,13 +181,12 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     assertEq(s_token.totalSupply(), 110);
 
     // second mint fails because context was cleared after the last mint
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.mint.selector,
-        address(expectedContextPolicy),
-        "context does not match expected value"
-      )
+    _expectRejectedRevert(
+      address(expectedContextPolicy),
+      "context does not match expected value",
+      IToken.mint.selector,
+      s_owner,
+      abi.encode(alice, 110)
     );
     s_token.mint(alice, 110);
   }
@@ -204,13 +205,12 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
   function test_mint_over_failure() public {
     address alice = makeAddr("alice");
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.mint.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
+    _expectRejectedRevert(
+      address(volumePolicy),
+      "amount outside allowed volume limits",
+      IToken.mint.selector,
+      s_owner,
+      abi.encode(alice, 220)
     );
     s_token.mint(alice, 220);
   }
@@ -218,14 +218,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
   function test_mint_under_failure() public {
     address alice = makeAddr("alice");
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.mint.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.mint.selector,
+      sender: s_owner,
+      data: abi.encode(alice, 50),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(volumePolicy), "amount outside allowed volume limits", payload);
     s_token.mint(alice, 50);
   }
 
@@ -235,14 +234,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.mint.selector,
-        address(minterBurnerList),
-        "sender is not authorized"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.mint.selector,
+      sender: alice,
+      data: abi.encode(alice, 10),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(minterBurnerList), "sender is not authorized", payload);
     s_token.mint(alice, 10);
   }
 
@@ -280,14 +278,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.burn.selector,
-        address(minterBurnerList),
-        "sender is not authorized"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.burn.selector,
+      sender: alice,
+      data: abi.encode(alice, 70),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(minterBurnerList), "sender is not authorized", payload);
     s_token.burn(alice, 70);
   }
 
@@ -317,14 +314,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC20.transfer.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IERC20.transfer.selector,
+      sender: alice,
+      data: abi.encode(bob, 210),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(volumePolicy), "amount outside allowed volume limits", payload);
     s_token.transfer(bob, 210);
   }
 
@@ -337,14 +333,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC20.transfer.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
-    );
+    IPolicyEngine.Payload memory payload2 = IPolicyEngine.Payload({
+      selector: IERC20.transfer.selector,
+      sender: alice,
+      data: abi.encode(bob, 50),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(volumePolicy), "amount outside allowed volume limits", payload2);
     s_token.transfer(bob, 50);
   }
 
@@ -368,12 +363,11 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     address alice = makeAddr("alice");
     vm.startPrank(alice);
 
+    IPolicyEngine.Payload memory payload =
+      IPolicyEngine.Payload({selector: IToken.pause.selector, sender: alice, data: new bytes(0), context: new bytes(0)});
     vm.expectRevert(
       abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.pause.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
+        IPolicyEngine.PolicyRunRejected.selector, address(onlyOwnerPolicy), "caller is not the policy owner", payload
       )
     );
     s_token.pause();
@@ -407,14 +401,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.unpause.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.unpause.selector,
+      sender: alice,
+      data: new bytes(0),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(onlyOwnerPolicy), "caller is not the policy owner", payload);
     s_token.unpause();
   }
 
@@ -483,14 +476,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     s_token.mint(alice, 120);
 
     vm.startPrank(alice);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.setAddressFrozen.selector,
-        address(freezingList),
-        "sender is not authorized"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.setAddressFrozen.selector,
+      sender: alice,
+      data: abi.encode(alice, true),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(freezingList), "sender is not authorized", payload);
     s_token.setAddressFrozen(alice, true);
   }
 
@@ -687,14 +679,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
 
     s_token.mint(alice, 120);
     vm.startPrank(alice);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.freezePartialTokens.selector,
-        address(freezingList),
-        "sender is not authorized"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.freezePartialTokens.selector,
+      sender: alice,
+      data: abi.encode(alice, 10),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(freezingList), "sender is not authorized", payload);
     s_token.freezePartialTokens(alice, 10);
   }
 
@@ -734,14 +725,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     s_token.freezePartialTokens(alice, 50);
 
     vm.startPrank(alice);
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.unfreezePartialTokens.selector,
-        address(freezingList),
-        "sender is not authorized"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.unfreezePartialTokens.selector,
+      sender: alice,
+      data: abi.encode(alice, 10),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(freezingList), "sender is not authorized", payload);
     s_token.unfreezePartialTokens(alice, 10);
   }
 
@@ -780,14 +770,13 @@ contract ComplianceTokenERC3643Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(bob);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IToken.forcedTransfer.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: IToken.forcedTransfer.selector,
+      sender: bob,
+      data: abi.encode(alice, bob, 60),
+      context: new bytes(0)
+    });
+    _expectRejectedRevert(address(onlyOwnerPolicy), "caller is not the policy owner", payload);
     s_token.forcedTransfer(alice, bob, 60);
   }
 

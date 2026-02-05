@@ -1,21 +1,27 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IExtractor} from "../interfaces/IExtractor.sol";
 import {IMapper} from "../interfaces/IMapper.sol";
 import {IPolicy} from "../interfaces/IPolicy.sol";
+import {Policy} from "./Policy.sol";
 import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
+contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine {
+  string public constant override typeAndVersion = "PolicyEngine 1.0.0";
+
   uint256 private constant MAX_POLICIES = 8;
+  bytes32 public constant POLICY_CONFIG_ADMIN_ROLE = keccak256("POLICY_CONFIG_ADMIN_ROLE");
+  bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-  /// @custom:storage-location erc7201:policy-management.PolicyEngine
+  /// @custom:storage-location erc7201:chainlink.ace.PolicyEngine
   struct PolicyEngineStorage {
     bool defaultPolicyAllow;
     mapping(bytes4 selector => address extractor) extractorBySelector;
     mapping(address policy => address mapper) policyMappers;
+    mapping(address policy => uint256 configVersion) policyConfigVersions;
     mapping(address target => bool attached) targetAttached;
     mapping(address target => mapping(bytes4 selector => address[] policies)) targetPolicies;
     mapping(address target => mapping(bytes4 selector => mapping(address policy => bytes32[] policyParameterNames)))
@@ -24,11 +30,11 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     mapping(address target => bool targetDefaultPolicyAllow) targetDefaultPolicyAllow;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.PolicyEngine")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.PolicyEngine")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant policyEngineStorageLocation =
-    0xa1f0e32dde2a220dbeed9998863e2afeb333bc7b502562572bef1aa4cf5bf300;
+    0x9876d26c639ec5f9246047c1a6b3d2d4c94a7f0dd7848b1a4f882f50fcb29f00;
 
   function _policyEngineStorage() private pure returns (PolicyEngineStorage storage $) {
     // solhint-disable-next-line no-inline-assembly
@@ -50,16 +56,19 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
   }
 
   function __PolicyEngine_init(bool defaultAllow, address initialOwner) internal onlyInitializing {
-    __PolicyEngine_init_unchained(defaultAllow);
-    __Ownable_init(initialOwner);
+    __PolicyEngine_init_unchained(defaultAllow, initialOwner);
+    __AccessControl_init_unchained();
   }
 
-  function __PolicyEngine_init_unchained(bool defaultAllow) internal onlyInitializing {
+  function __PolicyEngine_init_unchained(bool defaultAllow, address initialOwner) internal onlyInitializing {
     _policyEngineStorage().defaultPolicyAllow = defaultAllow;
+    emit DefaultPolicyAllowSet(defaultAllow);
+    _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
+    _grantRole(ADMIN_ROLE, initialOwner);
+    _grantRole(POLICY_CONFIG_ADMIN_ROLE, initialOwner);
   }
 
   /// @inheritdoc IPolicyEngine
-  // TODO: need to review the permissioing of this function
   function attach() public {
     _attachTarget(msg.sender);
   }
@@ -73,23 +82,26 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
   }
 
   /// @inheritdoc IPolicyEngine
-  // TODO: need to review the permissioing of this function
   function detach() public {
-    if (!_policyEngineStorage().targetAttached[msg.sender]) {
-      revert IPolicyEngine.TargetNotAttached(msg.sender);
+    _detachTarget(msg.sender);
+  }
+
+  function _detachTarget(address target) internal {
+    if (!_policyEngineStorage().targetAttached[target]) {
+      revert IPolicyEngine.TargetNotAttached(target);
     }
-    _policyEngineStorage().targetAttached[msg.sender] = false;
-    emit TargetDetached(msg.sender);
+    _policyEngineStorage().targetAttached[target] = false;
+    emit TargetDetached(target);
   }
 
   /// @inheritdoc IPolicyEngine
-  function setDefaultPolicyAllow(bool defaultAllow) public onlyOwner {
+  function setDefaultPolicyAllow(bool defaultAllow) public onlyRole(ADMIN_ROLE) {
     _policyEngineStorage().defaultPolicyAllow = defaultAllow;
     emit DefaultPolicyAllowSet(defaultAllow);
   }
 
   /// @inheritdoc IPolicyEngine
-  function setTargetDefaultPolicyAllow(address target, bool defaultAllow) public onlyOwner {
+  function setTargetDefaultPolicyAllow(address target, bool defaultAllow) public onlyRole(ADMIN_ROLE) {
     PolicyEngineStorage storage $ = _policyEngineStorage();
     $.targetHasDefault[target] = true;
     $.targetDefaultPolicyAllow[target] = defaultAllow;
@@ -97,8 +109,9 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
   }
 
   /// @inheritdoc IPolicyEngine
-  function setPolicyMapper(address policy, address mapper) public onlyOwner {
+  function setPolicyMapper(address policy, address mapper) public onlyRole(ADMIN_ROLE) {
     _policyEngineStorage().policyMappers[policy] = mapper;
+    emit PolicyMapperSet(policy, mapper);
   }
 
   /// @inheritdoc IPolicyEngine
@@ -111,7 +124,7 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     address[] memory policies = _policyEngineStorage().targetPolicies[msg.sender][payload.selector];
 
     if (policies.length == 0) {
-      _checkDefaultPolicyAllowRevert(msg.sender, payload.selector);
+      _checkDefaultPolicyAllowRevert(msg.sender, payload);
       return;
     }
 
@@ -120,7 +133,10 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
-        policy, _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy], extractedParameters
+        policy,
+        _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy],
+        extractedParameters,
+        payload
       );
       try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
       returns (IPolicyEngine.PolicyResult policyResult) {
@@ -132,24 +148,27 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       }
     }
 
-    _checkDefaultPolicyAllowRevert(msg.sender, payload.selector);
+    _checkDefaultPolicyAllowRevert(msg.sender, payload);
   }
 
   /// @inheritdoc IPolicyEngine
   function run(IPolicyEngine.Payload calldata payload) public virtual override {
     address[] memory policies = _policyEngineStorage().targetPolicies[msg.sender][payload.selector];
+    IPolicyEngine.Parameter[] memory extractedParameters = _extractParameters(payload);
     if (policies.length == 0) {
-      _checkDefaultPolicyAllowRevert(msg.sender, payload.selector);
-      emit PolicyRunComplete(payload.sender, msg.sender, payload.selector);
+      _checkDefaultPolicyAllowRevert(msg.sender, payload);
+      emit PolicyRunComplete(payload.sender, msg.sender, payload.selector, extractedParameters, payload.context);
       return;
     }
 
-    IPolicyEngine.Parameter[] memory extractedParameters = _extractParameters(payload);
     for (uint256 i = 0; i < policies.length; i++) {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
-        policy, _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy], extractedParameters
+        policy,
+        _policyEngineStorage().targetPolicyParameters[msg.sender][payload.selector][policy],
+        extractedParameters,
+        payload
       );
       try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
       returns (IPolicyEngine.PolicyResult policyResult) {
@@ -157,10 +176,10 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
         try IPolicy(policy).postRun(
           payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context
         ) {} catch (bytes memory err) {
-          revert IPolicyEngine.PolicyPostRunError(payload.selector, policy, err);
+          revert IPolicyEngine.PolicyPostRunError(policy, err, payload);
         }
         if (policyResult == IPolicyEngine.PolicyResult.Allowed) {
-          emit PolicyRunComplete(payload.sender, msg.sender, payload.selector);
+          emit PolicyRunComplete(payload.sender, msg.sender, payload.selector, extractedParameters, payload.context);
           return;
         }
       } catch (bytes memory err) {
@@ -168,21 +187,25 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       }
     }
 
-    _checkDefaultPolicyAllowRevert(msg.sender, payload.selector);
-    emit PolicyRunComplete(payload.sender, msg.sender, payload.selector);
+    _checkDefaultPolicyAllowRevert(msg.sender, payload);
+    emit PolicyRunComplete(payload.sender, msg.sender, payload.selector, extractedParameters, payload.context);
   }
 
   /// @inheritdoc IPolicyEngine
-  function setExtractor(bytes4 selector, address extractor) public virtual override onlyOwner {
+  function setExtractor(bytes4 selector, address extractor) public virtual override onlyRole(ADMIN_ROLE) {
+    _setExtractor(selector, extractor);
+  }
+
+  /// @inheritdoc IPolicyEngine
+  function setExtractors(bytes4[] calldata selectors, address extractor) public virtual override onlyRole(ADMIN_ROLE) {
+    for (uint256 i = 0; i < selectors.length; i++) {
+      _setExtractor(selectors[i], extractor);
+    }
+  }
+
+  function _setExtractor(bytes4 selector, address extractor) internal {
     _policyEngineStorage().extractorBySelector[selector] = extractor;
     emit ExtractorSet(selector, extractor);
-  }
-
-  /// @inheritdoc IPolicyEngine
-  function setExtractors(bytes4[] calldata selectors, address extractor) public virtual override onlyOwner {
-    for (uint256 i = 0; i < selectors.length; i++) {
-      setExtractor(selectors[i], extractor);
-    }
   }
 
   /// @inheritdoc IPolicyEngine
@@ -200,13 +223,15 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     public
     virtual
     override
-    onlyOwner
+    onlyRole(ADMIN_ROLE)
   {
     _checkPolicyConfiguration(target, selector, policy);
-    IPolicy(policy).onInstall(selector);
     _policyEngineStorage().targetPolicies[target][selector].push(policy);
     _policyEngineStorage().targetPolicyParameters[target][selector][policy] = policyParameterNames;
-    emit PolicyAdded(target, selector, policy);
+    IPolicy(policy).onInstall(selector);
+    emit PolicyAdded(
+      target, selector, policy, _policyEngineStorage().targetPolicies[target][selector].length - 1, policyParameterNames
+    );
   }
 
   /// @inheritdoc IPolicyEngine
@@ -220,38 +245,40 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     public
     virtual
     override
-    onlyOwner
+    onlyRole(ADMIN_ROLE)
   {
     address[] storage policies = _policyEngineStorage().targetPolicies[target][selector];
     if (position > policies.length) {
-      revert IPolicyEngine.InvalidConfiguration("Position is greater than the number of policies");
+      revert Policy.InvalidParameters("Position is greater than the number of policies");
     }
     _checkPolicyConfiguration(target, selector, policy);
-    IPolicy(policy).onInstall(selector);
     policies.push();
     for (uint256 i = policies.length - 1; i > position; i--) {
       policies[i] = policies[i - 1];
     }
     policies[position] = policy;
     _policyEngineStorage().targetPolicyParameters[target][selector][policy] = policyParameterNames;
-    emit PolicyAdded(target, selector, policy);
+    IPolicy(policy).onInstall(selector);
+    emit PolicyAddedAt(target, selector, policy, position, policyParameterNames, policies);
   }
 
   /// @inheritdoc IPolicyEngine
-  function removePolicy(address target, bytes4 selector, address policy) public virtual override onlyOwner {
+  function removePolicy(address target, bytes4 selector, address policy) public virtual override onlyRole(ADMIN_ROLE) {
     address[] storage policies = _policyEngineStorage().targetPolicies[target][selector];
+    address removedPolicy = address(0);
     for (uint256 i = 0; i < policies.length; i++) {
       if (policies[i] == policy) {
-        IPolicy(policy).onUninstall(selector);
-
+        removedPolicy = policies[i];
         for (uint256 j = i; j < policies.length - 1; j++) {
           policies[j] = policies[j + 1];
         }
-
         policies.pop();
         emit PolicyRemoved(target, selector, policy);
-        return;
+        break;
       }
+    }
+    if (removedPolicy != address(0)) {
+      IPolicy(policy).onUninstall(selector);
     }
   }
 
@@ -269,37 +296,65 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     return _policyEngineStorage().targetPolicies[target][selector];
   }
 
+  function setPolicyConfiguration(
+    address policy,
+    uint256 configVersion,
+    bytes4 configSelector,
+    bytes calldata configData
+  )
+    public
+    virtual
+    override
+    onlyRole(POLICY_CONFIG_ADMIN_ROLE)
+  {
+    if (_policyEngineStorage().policyConfigVersions[policy] != configVersion) {
+      revert IPolicyEngine.PolicyConfigurationVersionError(
+        policy, configVersion, _policyEngineStorage().policyConfigVersions[policy]
+      );
+    }
+    _policyEngineStorage().policyConfigVersions[policy]++;
+    (bool success, bytes memory result) = policy.call(abi.encodePacked(configSelector, configData));
+    if (!success) {
+      revert IPolicyEngine.PolicyConfigurationError(policy, result);
+    }
+    emit PolicyConfigured(policy, configVersion, configSelector, configData);
+  }
+
+  function getPolicyConfigVersion(address policy) public view virtual override returns (uint256) {
+    return _policyEngineStorage().policyConfigVersions[policy];
+  }
+
   function _handlePolicyError(Payload memory payload, address policy, bytes memory err) internal pure {
     (bytes4 errorSelector, bytes memory errorData) = _decodeError(err);
     if (errorSelector == IPolicyEngine.PolicyRejected.selector) {
-      revert IPolicyEngine.PolicyRunRejected(payload.selector, policy, abi.decode(errorData, (string)));
+      revert IPolicyEngine.PolicyRunRejected(policy, abi.decode(errorData, (string)), payload);
     } else {
-      revert IPolicyEngine.PolicyRunError(payload.selector, policy, err);
+      revert IPolicyEngine.PolicyRunError(policy, err, payload);
     }
   }
 
-  function _checkDefaultPolicyAllowRevert(address target, bytes4 selector) private view {
+  function _checkDefaultPolicyAllowRevert(address target, IPolicyEngine.Payload memory payload) private view {
     PolicyEngineStorage storage $ = _policyEngineStorage();
     bool defaultAllow = $.defaultPolicyAllow;
     if ($.targetHasDefault[target]) {
       defaultAllow = $.targetDefaultPolicyAllow[target];
     }
     if (!defaultAllow) {
-      revert IPolicyEngine.PolicyRunRejected(0, address(0), "no policy allowed the action and default is reject");
+      revert IPolicyEngine.PolicyRunRejected(address(0), "no policy allowed the action and default is reject", payload);
     }
   }
 
   function _checkPolicyConfiguration(address target, bytes4 selector, address policy) private view {
     if (policy == address(0)) {
-      revert IPolicyEngine.InvalidConfiguration("Policy address cannot be zero");
+      revert Policy.InvalidParameters("Policy address cannot be zero");
     }
     if (_policyEngineStorage().targetPolicies[target][selector].length >= MAX_POLICIES) {
-      revert IPolicyEngine.InvalidConfiguration("Maximum policies reached");
+      revert Policy.InvalidParameters("Maximum policies reached");
     }
     address[] memory policies = _policyEngineStorage().targetPolicies[target][selector];
     for (uint256 i = 0; i < policies.length; i++) {
       if (policies[i] == policy) {
-        revert IPolicyEngine.InvalidConfiguration("Policy already added");
+        revert Policy.InvalidParameters("Policy already added");
       }
     }
   }
@@ -319,7 +374,7 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
     try extractor.extract(payload) returns (IPolicyEngine.Parameter[] memory _extractedParameters) {
       extractedParameters = _extractedParameters;
     } catch (bytes memory err) {
-      revert IPolicyEngine.ExtractorError(payload.selector, address(extractor), err);
+      revert IPolicyEngine.ExtractorError(address(extractor), err, payload);
     }
 
     return extractedParameters;
@@ -328,7 +383,8 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
   function _policyParameterValues(
     address policy,
     bytes32[] memory policyParameterNames,
-    IPolicyEngine.Parameter[] memory extractedParameters
+    IPolicyEngine.Parameter[] memory extractedParameters,
+    IPolicyEngine.Payload memory payload
   )
     private
     view
@@ -340,7 +396,7 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
       try IMapper(mapper).map(extractedParameters) returns (bytes[] memory mappedParameters) {
         return mappedParameters;
       } catch (bytes memory err) {
-        revert IPolicyEngine.PolicyMapperError(policy, err);
+        revert IPolicyEngine.PolicyMapperError(policy, err, payload);
       }
     }
 
@@ -364,7 +420,7 @@ contract PolicyEngine is Initializable, OwnableUpgradeable, IPolicyEngine {
         return policyParameterValues;
       }
     }
-    revert IPolicyEngine.InvalidConfiguration("Missing policy parameters");
+    revert Policy.InvalidParameters("Missing policy parameters");
   }
 
   function _decodeError(bytes memory err) internal pure returns (bytes4, bytes memory) {

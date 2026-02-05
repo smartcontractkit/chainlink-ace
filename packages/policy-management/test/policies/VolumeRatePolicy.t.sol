@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {VolumeRatePolicy} from "@chainlink/policy-management/policies/VolumeRatePolicy.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract VolumeRatePolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
   VolumeRatePolicy public volumeRatePolicy;
   ERC20TransferExtractor public extractor;
-  MockToken token;
+  MockTokenUpgradeable token;
   address public deployer;
   address public txSender;
 
@@ -24,7 +24,7 @@ contract VolumeRatePolicyTest is BaseProxyTest {
 
     policyEngine = _deployPolicyEngine(true, deployer);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     extractor = new ERC20TransferExtractor();
     bytes32[] memory parameterOutputFormat = new bytes32[](2);
@@ -36,10 +36,10 @@ contract VolumeRatePolicyTest is BaseProxyTest {
       _deployPolicy(address(volumeRatePolicyImpl), address(policyEngine), deployer, abi.encode(1 days, 200))
     );
 
-    policyEngine.setExtractor(MockToken.transfer.selector, address(extractor));
+    policyEngine.setExtractor(MockTokenUpgradeable.transfer.selector, address(extractor));
 
     policyEngine.addPolicy(
-      address(token), MockToken.transfer.selector, address(volumeRatePolicy), parameterOutputFormat
+      address(token), MockTokenUpgradeable.transfer.selector, address(volumeRatePolicy), parameterOutputFormat
     );
     vm.warp(1737583804);
   }
@@ -93,10 +93,12 @@ contract VolumeRatePolicyTest is BaseProxyTest {
 
     token.transfer(recipient, 100);
 
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
-      )
+    _expectRejectedRevert(
+      address(volumeRatePolicy),
+      "volume rate limit exceeded for time period",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 101)
     );
     token.transfer(recipient, 101);
 
@@ -126,10 +128,12 @@ contract VolumeRatePolicyTest is BaseProxyTest {
     token.transfer(recipient, 200);
     assert(token.balanceOf(recipient) == 300);
 
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
-      )
+    _expectRejectedRevert(
+      address(volumeRatePolicy),
+      "volume rate limit exceeded for time period",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 1)
     );
     token.transfer(recipient, 1);
   }
@@ -145,10 +149,12 @@ contract VolumeRatePolicyTest is BaseProxyTest {
     vm.assertEq(token.balanceOf(recipient), 200);
 
     // second transfer at time period 1000 (fails)
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(volumeRatePolicy), "volume rate limit exceeded for time period"
-      )
+    _expectRejectedRevert(
+      address(volumeRatePolicy),
+      "volume rate limit exceeded for time period",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 200)
     );
     token.transfer(recipient, 200);
 

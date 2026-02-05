@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract ExpectedParameterPolicy is Policy {
+  string public constant override typeAndVersion = "ExpectedParameterPolicy 1.0.0";
+
   bytes[] private s_expectedParameters;
 
   function configure(bytes calldata parameters) internal override onlyInitializing {

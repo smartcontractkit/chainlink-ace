@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
 import {ICredentialRegistry} from "../src/interfaces/ICredentialRegistry.sol";
@@ -549,6 +549,21 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
 
     assertFalse(
       s_identityValidator.validate(account1, ""), "Should fail when credential registry throws, even with invert=true"
+    );
+  }
+
+  function test_addCredentialRequirement_maxCredentialTypesPerRequirement_invalid() public {
+    bytes32[] memory credentialTypeIds = new bytes32[](33);
+    for (uint256 i = 0; i < 33; i++) {
+      credentialTypeIds[i] = keccak256(abi.encodePacked("credential", i));
+    }
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        ICredentialRequirements.InvalidRequirementConfiguration.selector, "Invalid credential types length"
+      )
+    );
+    s_identityValidator.addCredentialRequirement(
+      ICredentialRequirements.CredentialRequirementInput(keccak256("TEST_REQ"), credentialTypeIds, 1, false)
     );
   }
 }

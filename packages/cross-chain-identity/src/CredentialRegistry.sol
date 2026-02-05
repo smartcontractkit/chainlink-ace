@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {ICredentialRegistry} from "./interfaces/ICredentialRegistry.sol";
 import {ICredentialValidator} from "./interfaces/ICredentialValidator.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 
-contract CredentialRegistry is PolicyProtected, ICredentialRegistry {
-  /// @custom:storage-location erc7201:cross-chain-identity.CredentialRegistry
+contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
+  string public constant override typeAndVersion = "CredentialRegistry 1.0.0";
+
+  /// @custom:storage-location erc7201:chainlink.ace.CredentialRegistry
   struct CredentialRegistryStorage {
     mapping(bytes32 ccid => bytes32[] credentialTypeIds) credentialTypeIdsByCCID;
     mapping(bytes32 ccid => mapping(bytes32 credentialTypeId => Credential credentials)) credentials;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("cross-chain-identity.CredentialRegistry")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.CredentialRegistry")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant credentialRegistryStorageLocation =
-    0xda878a21d431ff897bdb535b211ae68088a4b0265066b239bc4db2e51d9a8200;
+    0xa402d759ab0c43f5f6ba3a2cdc5bb0f98c15af3daf1f94f873714cacbe789800;
 
   function _credentialRegistryStorage() private pure returns (CredentialRegistryStorage storage $) {
     // solhint-disable-next-line no-inline-assembly
@@ -168,7 +170,7 @@ contract CredentialRegistry is PolicyProtected, ICredentialRegistry {
     view
     returns (Credential[] memory)
   {
-    uint8 length = uint8(credentialTypeIds.length);
+    uint256 length = credentialTypeIds.length;
     Credential[] memory credentials = new Credential[](length);
     for (uint256 i = 0; i < length; i++) {
       credentials[i] = getCredential(ccid, credentialTypeIds[i]);

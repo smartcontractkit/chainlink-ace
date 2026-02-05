@@ -58,6 +58,8 @@ struct Credential {
 
 ```solidity
 interface ICredentialRegistry {
+    function typeAndVersion() external pure returns (string memory);
+
     function registerCredential(
         bytes32 ccid,
         bytes32 credentialTypeId,

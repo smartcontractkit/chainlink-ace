@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IExtractor} from "@chainlink/policy-management/interfaces/IExtractor.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
@@ -13,6 +13,9 @@ import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenER
  *      For burn(), the account is set to msg.sender since it burns from the caller's balance.
  */
 contract ComplianceTokenMintBurnExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ComplianceTokenMintBurnExtractor 1.0.0";
+
   /// @notice Parameter key for the target account address in mint/burn operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");
 

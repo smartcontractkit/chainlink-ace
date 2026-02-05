@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {CredentialRegistryIdentityValidator} from "./CredentialRegistryIdentityValidator.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
@@ -7,6 +7,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
 import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
 
 contract CredentialRegistryIdentityValidatorPolicy is Policy, CredentialRegistryIdentityValidator {
+  string public constant override typeAndVersion = "CredentialRegistryIdentityValidatorPolicy 1.0.0";
+
   /**
    * @notice Configures the policy by setting up credential sources and credential requirements.
    * @dev The `parameters` input must be the ABI encoding of two dynamic arrays:
@@ -53,14 +55,15 @@ contract CredentialRegistryIdentityValidatorPolicy is Policy, CredentialRegistry
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    // expected parameters: [account(address)]
-    if (parameters.length != 1) {
-      revert IPolicyEngine.InvalidConfiguration("expected 1 parameter");
+    if (parameters.length < 1) {
+      revert InvalidParameters("expected at least 1 parameter");
     }
-    address account = abi.decode(parameters[0], (address));
 
-    if (!validate(account, context)) {
-      revert IPolicyEngine.PolicyRejected("account identity validation failed");
+    for (uint256 i = 0; i < parameters.length; i++) {
+      address account = abi.decode(parameters[i], (address));
+      if (!validate(account, context)) {
+        revert IPolicyEngine.PolicyRejected("account identity validation failed");
+      }
     }
     return IPolicyEngine.PolicyResult.Continue;
   }

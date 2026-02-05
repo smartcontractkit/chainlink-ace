@@ -71,6 +71,8 @@ The `IPolicy` interface is the standard for all policy contracts. Each policy mu
 
 ```solidity
 interface IPolicy is IERC165 {
+  function typeAndVersion() external pure returns (string memory);
+
   function run(
     address caller,
     address subject,
@@ -147,7 +149,7 @@ interface IMapper is IERC165 {
 ```solidity
 event TargetAttached(address indexed target);
 event TargetDetached(address indexed target);
-event PolicyAdded(address indexed target, bytes4 indexed selector, address policy);
+event PolicyAdded(address indexed target, bytes4 indexed selector, address policy, uint256 position);
 event PolicyRemoved(address indexed target, bytes4 indexed selector, address policy);
 event ExtractorSet(bytes4 indexed selector, address indexed extractor);
 event PolicyParametersSet(address indexed policy, bytes[] parameters);

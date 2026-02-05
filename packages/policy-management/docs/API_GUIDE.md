@@ -189,6 +189,8 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 
 contract SignaturePolicy is Policy {
+    string public constant override typeAndVersion = "SignaturePolicy 1.0.0";
+
     address public requiredSigner;
 
     // ... constructor to set the requiredSigner ...

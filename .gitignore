@@ -17,3 +17,4 @@ broadcast/*
 broadcast/*/31337/
 
 release-files.txt
+/gethwrappers/build

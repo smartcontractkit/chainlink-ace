@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IExtractor} from "@chainlink/policy-management/interfaces/IExtractor.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
@@ -12,6 +12,9 @@ import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenER
  *      and extracts the target account address and amount parameters for compliance-related freezing operations.
  */
 contract ComplianceTokenFreezeUnfreezeExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ComplianceTokenFreezeUnfreezeExtractor 1.0.0";
+
   /// @notice Parameter key for the target account address in freeze/unfreeze operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");
 

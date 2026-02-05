@@ -32,7 +32,7 @@ Building compliant applications on the blockchain requires handling:
 
 ## How It Works: A Real-World Example
 
-Here's how these three components work together. Imagine **Emma** (an institutional investor) wants to buy **$50,000** of a **Tokenized Bond** on a DEX.
+Here's how these components work together. Imagine **Emma** (an institutional investor) wants to buy **$50,000** of a **Tokenized Bond** on a DEX.
 
 ```mermaid
 graph TB
@@ -114,6 +114,14 @@ If any policy check had failed, the **Policy Engine would have reverted the tran
 **→ [Start the Getting Started Guide](./getting_started/GETTING_STARTED.md)**
 
 ---
+
+### Upgrading an existing contract?
+
+**Already have a deployed contract** that you want to add ACE compliance to? Our upgrade guide walks you through the process step-by-step.
+
+**Best for:** Teams with existing deployed contracts (tokens, vaults, DEXs, etc.) that need to add policy-based compliance.
+
+**→ [Upgrade Guide](./UPGRADE_GUIDE.md)**
 
 ### Need identity & credential verification?
 

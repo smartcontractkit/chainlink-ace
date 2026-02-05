@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract PolicyAlwaysAllowed is Policy {
+  string public constant override typeAndVersion = "PolicyAlwaysAllowed 1.0.0";
+
   uint8 private s_policyNumber;
 
   event PolicyAllowedExecuted(uint256 value);

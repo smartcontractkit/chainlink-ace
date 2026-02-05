@@ -10,6 +10,12 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
  */
 interface IPolicy is IERC165 {
   /**
+   * @notice Returns the type and version of the policy.
+   * @return A string representing the type and version of the policy.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Hook called upon installation of the policy.
    * @param selector The selector of the policy.
    */

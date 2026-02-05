@@ -193,5 +193,6 @@ The Policy Management component is incredibly powerful, but its security depends
 - **[Policy Ordering Guide](docs/POLICY_ORDERING_GUIDE.md)**: Learn how to add, remove, and reorder policies in the Policy Engine.
 - **[API Guide](docs/API_GUIDE.md)**: A developer-focused guide for common tasks.
 - **[API Reference](docs/API_REFERENCE.md)**: Complete interface specifications.
+- **[Upgrade Guide](../../UPGRADE_GUIDE.md)**: Add ACE to an existing deployed contract without disrupting functionality.
 - **[Security Deep Dive](docs/SECURITY.md)**: A full checklist of security principles for a robust implementation.
 - **[Implementation](./src/) & [Tests](./test/)**: Examine the reference implementation in `/src` and see it in action in the `/test` folder.

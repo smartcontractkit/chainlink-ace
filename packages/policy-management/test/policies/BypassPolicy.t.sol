@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 import {BypassPolicy} from "@chainlink/policy-management/policies/BypassPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract BypassPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   BypassPolicy public bypassPolicy;
   address public deployer;
   address public account;
@@ -30,25 +30,30 @@ contract BypassPolicyTest is BaseProxyTest {
     // add account by default
     bypassPolicy.allowAddress(account);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     // set up the bypassPolicy to check the recipient and origin address of token transfers
     ERC20TransferExtractor transferExtractor = new ERC20TransferExtractor();
     bytes32[] memory transferPolicyParams = new bytes32[](2);
     transferPolicyParams[0] = transferExtractor.PARAM_TO();
     transferPolicyParams[1] = transferExtractor.PARAM_FROM();
-    policyEngine.setExtractor(MockToken.transfer.selector, address(transferExtractor));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(bypassPolicy), transferPolicyParams);
+    policyEngine.setExtractor(MockTokenUpgradeable.transfer.selector, address(transferExtractor));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(bypassPolicy), transferPolicyParams
+    );
     // set up the bypassPolicy to check the mint account (single account)
     ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
     bytes32[] memory mintPolicyParams = new bytes32[](1);
     mintPolicyParams[0] = mintBurnExtractor.PARAM_ACCOUNT();
-    policyEngine.setExtractor(MockToken.mint.selector, address(mintBurnExtractor));
-    policyEngine.addPolicy(address(token), MockToken.mint.selector, address(bypassPolicy), mintPolicyParams);
+    policyEngine.setExtractor(MockTokenUpgradeable.mint.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.mint.selector, address(bypassPolicy), mintPolicyParams);
   }
 
   function test_allowAddress_succeeds() public {
     vm.startPrank(deployer, deployer);
+
+    vm.expectEmit(true, true, true, true);
+    emit BypassPolicy.AddressAllowed(recipient);
 
     // add the address to the allow list
     bypassPolicy.allowAddress(recipient);
@@ -73,6 +78,9 @@ contract BypassPolicyTest is BaseProxyTest {
     // add the address to the bypass list (setup and sanity check)
     bypassPolicy.allowAddress(recipient);
     vm.assertEq(bypassPolicy.addressAllowed(recipient), true);
+
+    vm.expectEmit(true, true, true, true);
+    emit BypassPolicy.AddressDisallowed(recipient);
 
     // remove the address from the bypass list
     bypassPolicy.disallowAddress(recipient);
@@ -105,7 +113,13 @@ contract BypassPolicyTest is BaseProxyTest {
     vm.startPrank(account, account);
 
     // transfer from address to recipient (reverts)
-    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
+    _expectRejectedRevert(
+      address(0),
+      "no policy allowed the action and default is reject",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
+    );
     token.transfer(recipient, 100);
   }
 
@@ -125,7 +139,13 @@ contract BypassPolicyTest is BaseProxyTest {
 
     // transfer from address to recipient (should revert after removal)
     vm.startPrank(account, account);
-    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
+    _expectRejectedRevert(
+      address(0),
+      "no policy allowed the action and default is reject",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
+    );
     token.transfer(recipient, 100);
   }
 
@@ -137,7 +157,13 @@ contract BypassPolicyTest is BaseProxyTest {
 
   function test_mint_notInList_defaultReject_failure() public {
     vm.startPrank(deployer, deployer);
-    vm.expectRevert(_encodeRejectedRevert(0, address(0), "no policy allowed the action and default is reject"));
+    _expectRejectedRevert(
+      address(0),
+      "no policy allowed the action and default is reject",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 100)
+    );
     token.mint(recipient, 100);
   }
 
@@ -145,15 +171,17 @@ contract BypassPolicyTest is BaseProxyTest {
     vm.startPrank(deployer);
     // misconfigure the bypassPolicy to check burn operations (no accounts)
     ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
-    policyEngine.setExtractor(MockToken.burn.selector, address(mintBurnExtractor));
-    policyEngine.addPolicy(address(token), MockToken.burn.selector, address(bypassPolicy), new bytes32[](0));
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(bypassPolicy), new bytes32[](0));
 
-    bytes memory error = abi.encodeWithSignature("Error(string)", "expected at least 1 parameter");
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunError.selector, MockToken.burn.selector, address(bypassPolicy), error
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(account, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected at least 1 parameter");
+    _expectRunError(address(bypassPolicy), error, payload);
     token.burn(account, 100);
   }
 }

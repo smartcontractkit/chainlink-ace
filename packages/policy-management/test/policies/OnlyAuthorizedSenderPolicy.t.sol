@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   OnlyAuthorizedSenderPolicy public policy;
   address public deployer;
   address public sender;
@@ -24,18 +24,46 @@ contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
     policyEngine = _deployPolicyEngine(true, deployer);
 
     OnlyAuthorizedSenderPolicy policyImpl = new OnlyAuthorizedSenderPolicy();
-    policy = OnlyAuthorizedSenderPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, ""));
+    policy =
+      OnlyAuthorizedSenderPolicy(_deployPolicy(address(policyImpl), address(policyEngine), address(policyEngine), ""));
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(policy), new bytes32[](0));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.transfer.selector, address(policy), new bytes32[](0));
+  }
+
+  function test_authorizeSender_invalidVersion_fails() public {
+    vm.startPrank(deployer, deployer);
+
+    // add the sender to the authorized list
+    policyEngine.setPolicyConfiguration(
+      address(policy), 0, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(sender)
+    );
+
+    vm.assertEq(policy.senderAuthorized(sender), true);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(IPolicyEngine.PolicyConfigurationVersionError.selector, address(policy), 0, 1)
+    );
+    policyEngine.setPolicyConfiguration(
+      address(policy), 0, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(sender)
+    );
   }
 
   function test_authorizeSender_succeeds() public {
     vm.startPrank(deployer, deployer);
 
+    vm.expectEmit(true, true, true, true);
+    emit OnlyAuthorizedSenderPolicy.SenderAuthorized(sender);
+
     // add the sender to the authorized list
-    policy.authorizeSender(sender);
+    policyEngine.setPolicyConfiguration(
+      address(policy),
+      policyEngine.getPolicyConfigVersion(address(policy)),
+      OnlyAuthorizedSenderPolicy.authorizeSender.selector,
+      abi.encode(sender)
+    );
+
     vm.assertEq(policy.senderAuthorized(sender), true);
   }
 
@@ -43,39 +71,80 @@ contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
     vm.startPrank(deployer, deployer);
 
     // add the sender to the authorized list (setup and sanity check)
-    policy.authorizeSender(sender);
+    policyEngine.setPolicyConfiguration(
+      address(policy),
+      policyEngine.getPolicyConfigVersion(address(policy)),
+      OnlyAuthorizedSenderPolicy.authorizeSender.selector,
+      abi.encode(sender)
+    );
     vm.assertEq(policy.senderAuthorized(sender), true);
 
+    uint256 version = policyEngine.getPolicyConfigVersion(address(policy));
     // add the sender to the authorized list again (reverts)
-    vm.expectRevert("Account already in authorized list");
-    policy.authorizeSender(sender);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyConfigurationError.selector,
+        address(policy),
+        abi.encodeWithSignature("Error(string)", "Account already in authorized list")
+      )
+    );
+    policyEngine.setPolicyConfiguration(
+      address(policy), version, OnlyAuthorizedSenderPolicy.authorizeSender.selector, abi.encode(sender)
+    );
   }
 
   function test_unauthorizeSender_succeeds() public {
     vm.startPrank(deployer, deployer);
 
+    vm.expectEmit(true, true, true, true);
+    emit OnlyAuthorizedSenderPolicy.SenderAuthorized(sender);
+
     // add the sender to the authorized list (setup and sanity check)
-    policy.authorizeSender(sender);
+    policyEngine.setPolicyConfiguration(
+      address(policy),
+      policyEngine.getPolicyConfigVersion(address(policy)),
+      OnlyAuthorizedSenderPolicy.authorizeSender.selector,
+      abi.encode(sender)
+    );
     vm.assertEq(policy.senderAuthorized(sender), true);
 
     // remove the sender from the authorized list
-    policy.unauthorizeSender(sender);
+    policyEngine.setPolicyConfiguration(
+      address(policy),
+      policyEngine.getPolicyConfigVersion(address(policy)),
+      OnlyAuthorizedSenderPolicy.unauthorizeSender.selector,
+      abi.encode(sender)
+    );
     vm.assertEq(policy.senderAuthorized(sender), false);
   }
 
   function test_unauthorizeSender_notInList_fails() public {
     vm.startPrank(deployer, deployer);
 
+    uint256 version = policyEngine.getPolicyConfigVersion(address(policy));
     // remove the sender from the authorized list (reverts)
-    vm.expectRevert("Account not in authorized list");
-    policy.unauthorizeSender(sender);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyConfigurationError.selector,
+        address(policy),
+        abi.encodeWithSignature("Error(string)", "Account not in authorized list")
+      )
+    );
+    policyEngine.setPolicyConfiguration(
+      address(policy), version, OnlyAuthorizedSenderPolicy.unauthorizeSender.selector, abi.encode(sender)
+    );
   }
 
   function test_transfer_inList_succeeds() public {
     vm.startPrank(deployer, deployer);
 
     // add the sender to the allow list
-    policy.authorizeSender(sender);
+    policyEngine.setPolicyConfiguration(
+      address(policy),
+      policyEngine.getPolicyConfigVersion(address(policy)),
+      OnlyAuthorizedSenderPolicy.authorizeSender.selector,
+      abi.encode(sender)
+    );
     vm.assertEq(policy.senderAuthorized(sender), true);
 
     vm.startPrank(sender, sender);
@@ -89,7 +158,13 @@ contract OnlyAuthorizedSenderPolicyTest is BaseProxyTest {
     vm.startPrank(sender, sender);
 
     // transfer from sender to recipient (reverts)
-    vm.expectRevert(_encodeRejectedRevert(MockToken.transfer.selector, address(policy), "sender is not authorized"));
+    _expectRejectedRevert(
+      address(policy),
+      "sender is not authorized",
+      MockTokenUpgradeable.transfer.selector,
+      sender,
+      abi.encode(recipient, 100)
+    );
     token.transfer(recipient, 100);
   }
 }
