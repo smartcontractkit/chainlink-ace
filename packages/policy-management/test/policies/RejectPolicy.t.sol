@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 import {RejectPolicy} from "@chainlink/policy-management/policies/RejectPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract RejectPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   RejectPolicy public rejectPolicy;
   address public deployer;
   address public account;
@@ -28,25 +28,30 @@ contract RejectPolicyTest is BaseProxyTest {
     RejectPolicy rejectPolicyImpl = new RejectPolicy();
     rejectPolicy = RejectPolicy(_deployPolicy(address(rejectPolicyImpl), address(policyEngine), deployer, ""));
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     // set up the rejectPolicy to check the recipient and origin address of token transfers
     ERC20TransferExtractor transferExtractor = new ERC20TransferExtractor();
     bytes32[] memory policyParameters = new bytes32[](2);
     policyParameters[0] = transferExtractor.PARAM_TO();
     policyParameters[1] = transferExtractor.PARAM_FROM();
-    policyEngine.setExtractor(MockToken.transfer.selector, address(transferExtractor));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(rejectPolicy), policyParameters);
+    policyEngine.setExtractor(MockTokenUpgradeable.transfer.selector, address(transferExtractor));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(rejectPolicy), policyParameters
+    );
     // set up the rejectPolicy to check the mint account (single account)
     ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
     bytes32[] memory mintPolicyParams = new bytes32[](1);
     mintPolicyParams[0] = mintBurnExtractor.PARAM_ACCOUNT();
-    policyEngine.setExtractor(MockToken.mint.selector, address(mintBurnExtractor));
-    policyEngine.addPolicy(address(token), MockToken.mint.selector, address(rejectPolicy), mintPolicyParams);
+    policyEngine.setExtractor(MockTokenUpgradeable.mint.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.mint.selector, address(rejectPolicy), mintPolicyParams);
   }
 
   function test_rejectAddress_succeeds() public {
     vm.startPrank(deployer, deployer);
+
+    vm.expectEmit(true, true, true, true);
+    emit RejectPolicy.AddressRejected(account);
 
     // add the sender to the reject list
     rejectPolicy.rejectAddress(account);
@@ -67,6 +72,9 @@ contract RejectPolicyTest is BaseProxyTest {
 
   function test_unrejectAddress_succeeds() public {
     vm.startPrank(deployer, deployer);
+
+    vm.expectEmit(true, true, true, true);
+    emit RejectPolicy.AddressRejected(account);
 
     // add the sender to the reject list (setup and sanity check)
     rejectPolicy.rejectAddress(account);
@@ -103,8 +111,12 @@ contract RejectPolicyTest is BaseProxyTest {
     vm.startPrank(account, account);
 
     // transfer from sender to recipient (reverts)
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
+    _expectRejectedRevert(
+      address(rejectPolicy),
+      "address is on reject list",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -121,8 +133,12 @@ contract RejectPolicyTest is BaseProxyTest {
     vm.startPrank(account, account);
 
     // transfer from sender to recipient (reverts)
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
+    _expectRejectedRevert(
+      address(rejectPolicy),
+      "address is on reject list",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -134,8 +150,12 @@ contract RejectPolicyTest is BaseProxyTest {
 
     // transfer from address to recipient (sanity check)
     vm.startPrank(account, account);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(rejectPolicy), "address is on reject list")
+    _expectRejectedRevert(
+      address(rejectPolicy),
+      "address is on reject list",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
 
@@ -160,7 +180,13 @@ contract RejectPolicyTest is BaseProxyTest {
     // add account as rejected
     rejectPolicy.rejectAddress(account);
     vm.assertEq(rejectPolicy.addressRejected(account), true);
-    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(rejectPolicy), "address is on reject list"));
+    _expectRejectedRevert(
+      address(rejectPolicy),
+      "address is on reject list",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(account, 100)
+    );
     token.mint(account, 100);
   }
 
@@ -168,15 +194,17 @@ contract RejectPolicyTest is BaseProxyTest {
     vm.startPrank(deployer);
     // misconfigure the rejectPolicy to check mint operations
     ERC3643MintBurnExtractor mintExtractor = new ERC3643MintBurnExtractor();
-    policyEngine.setExtractor(MockToken.burn.selector, address(mintExtractor));
-    policyEngine.addPolicy(address(token), MockToken.burn.selector, address(rejectPolicy), new bytes32[](0));
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(rejectPolicy), new bytes32[](0));
 
-    bytes memory error = abi.encodeWithSignature("Error(string)", "expected at least 1 parameter");
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunError.selector, MockToken.burn.selector, address(rejectPolicy), error
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(recipient, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected at least 1 parameter");
+    _expectRunError(address(rejectPolicy), error, payload);
     token.burn(recipient, 100);
   }
 }

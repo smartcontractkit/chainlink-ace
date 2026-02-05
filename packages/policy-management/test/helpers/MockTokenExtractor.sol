@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IExtractor} from "../../src/interfaces/IExtractor.sol";
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
-import {MockToken} from "./MockToken.sol";
+import {MockTokenUpgradeable} from "./MockTokenUpgradeable.sol";
 
 contract MockTokenExtractor is IExtractor {
+  string public constant override typeAndVersion = "MockTokenExtractor 1.0.0";
+
   bytes32 public constant PARAM_FROM = keccak256("from");
   bytes32 public constant PARAM_TO = keccak256("to");
   bytes32 public constant PARAM_AMOUNT = keccak256("amount");
@@ -15,10 +17,13 @@ contract MockTokenExtractor is IExtractor {
     address to = address(0);
     uint256 amount = 0;
 
-    if (payload.selector == MockToken.transfer.selector || payload.selector == MockToken.transferWithContext.selector) {
+    if (
+      payload.selector == MockTokenUpgradeable.transfer.selector
+        || payload.selector == MockTokenUpgradeable.transferWithContext.selector
+    ) {
       from = payload.sender;
       (to, amount) = abi.decode(payload.data, (address, uint256));
-    } else if (payload.selector == MockToken.transferFrom.selector) {
+    } else if (payload.selector == MockTokenUpgradeable.transferFrom.selector) {
       (from, to, amount) = abi.decode(payload.data, (address, address, uint256));
     } else {
       revert IPolicyEngine.UnsupportedSelector(payload.selector);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicy} from "../interfaces/IPolicy.sol";
 import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
@@ -10,16 +10,17 @@ import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/intro
 
 abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable, IPolicy {
   error Unauthorized();
+  error InvalidParameters(string reason);
 
-  /// @custom:storage-location erc7201:policy-management.Policy
+  /// @custom:storage-location erc7201:chainlink.ace.Policy
   struct PolicyStorage {
     address policyEngine;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.Policy")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.Policy")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
-  bytes32 private constant PolicyStorageLocation = 0xe4b9805cdebef99d9d38a3fed61079cbd4f3c0d610c4396bdc28a2ed8ad07100;
+  bytes32 private constant PolicyStorageLocation = 0x88b18ed68be9f5af7a0aa0e9a55256b17a6bcc168c9c257d2c5556789ebee900;
 
   function _getPolicyStorage() private pure returns (PolicyStorage storage $) {
     // solhint-disable-next-line no-inline-assembly

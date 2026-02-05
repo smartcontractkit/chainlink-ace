@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -11,6 +11,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * This policy enforces limits on the total amount transferred per account over a configurable time period.
  */
 contract VolumeRatePolicy is Policy {
+  string public constant override typeAndVersion = "VolumeRatePolicy 1.0.0";
+
   /// @notice The transfer volume data of an account.
   struct TransferredAt {
     /// @notice The time period in which the transfer occurred.
@@ -27,7 +29,7 @@ contract VolumeRatePolicy is Policy {
   /// @notice Emitted when the time period duration is set.
   event TimePeriodDurationSet(uint256 timePeriodDuration);
 
-  /// @custom:storage-location erc7201:policy-management.VolumeRatePolicy
+  /// @custom:storage-location erc7201:chainlink.ace.VolumeRatePolicy
   struct VolumeRatePolicyStorage {
     /// @notice The duration (in seconds) of the time period for tracking transfers.
     uint256 timePeriodDuration;
@@ -37,9 +39,9 @@ contract VolumeRatePolicy is Policy {
     uint256 maxAmount;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.VolumeRatePolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.VolumeRatePolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant VolumeRatePolicyStorageLocation =
-    0xcb25215b4838d4e292145a50fb0434197be06c30a5e619d206e7746dc76f7700;
+    0x4e9ca9d152ec839da550a8023a52d99ca770c76cef0b60815be74c3ff4dadb00;
 
   function _getVolumeRatePolicyStorage() private pure returns (VolumeRatePolicyStorage storage $) {
     assembly {
@@ -110,7 +112,9 @@ contract VolumeRatePolicy is Policy {
    * @return data The transfer amount and the sender address.
    */
   function _extractParameters(bytes[] calldata parameters) internal pure returns (uint256, address) {
-    require(parameters.length == 2, "expected 2 parameters");
+    if (parameters.length != 2) {
+      revert InvalidParameters("expected 2 parameters");
+    }
 
     uint256 amount = abi.decode(parameters[0], (uint256));
     address account = abi.decode(parameters[1], (address));
@@ -120,7 +124,7 @@ contract VolumeRatePolicy is Policy {
 
   /**
    * @notice Function to be called by the policy engine to check if execution is allowed.
-   * @param parameters [amount(uint256), from(address)] The parameters of the called method.
+   * @param parameters [amount(uint256), account(address)] The parameters of the called method.
    * @return result The result of the policy check.
    */
   function run(
@@ -161,7 +165,7 @@ contract VolumeRatePolicy is Policy {
    * @notice Runs after the policy check if the check was successful, and updates the transfer volume tracking for
    * the account. This function is called by the policy engine after run() succeeds but before the protected
    * target function executes.
-   * @param parameters [from(address), amount(uint256)] The parameters of the called method.
+   * @param parameters [amount(uint256), account(address)] The parameters of the called method.
    */
   function postRun(
     address, /*caller*/

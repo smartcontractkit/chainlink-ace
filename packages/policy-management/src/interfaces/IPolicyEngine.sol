@@ -13,23 +13,27 @@ interface IPolicyEngine {
   /// @notice Error emitted when the policy engine is missing or not present.
   error PolicyEngineUndefined();
   /// @notice Error emitted when the PolicyEngine run has been rejected by one of the polices.
-  error PolicyRunRejected(bytes4 selector, address policy, string rejectReason);
+  error PolicyRunRejected(address policy, string rejectReason, Payload payload);
   /// @notice Error emitted when a policy mapper results in an error.
-  error PolicyMapperError(address policy, bytes errorReason);
+  error PolicyMapperError(address policy, bytes errorReason, Payload payload);
   /// @notice Error emitted when an individual policy is rejecting a transaction.
   error PolicyRejected(string rejectReason);
   /// @notice Error emitted when the PolicyEngine run encounters an error while executing one of the policies.
-  error PolicyRunError(bytes4 selector, address policy, bytes errorReason);
+  error PolicyRunError(address policy, bytes errorReason, Payload payload);
   /// @notice Error emitted when a policy run is unauthorized.
   error PolicyRunUnauthorizedError(address account);
   /// @notice Error emitted when a policy postRun results in an error.
-  error PolicyPostRunError(bytes4 selector, address policy, bytes errorReason);
+  error PolicyPostRunError(address policy, bytes errorReason, Payload payload);
   /// @notice Error emitted when a policy extractor is run with an unsupported selector.
   error UnsupportedSelector(bytes4 selector);
-  /// @notice Error emitted when a configuration is invalid.
-  error InvalidConfiguration(string errorReason);
+  /// @notice Error emitted when a policy action results in an error.
+  error PolicyActionError(address policy, bytes errorReason);
+  /// @notice Error emitted when a policy configuration change results in an error.
+  error PolicyConfigurationError(address policy, bytes errorReason);
+  /// @notice Error emitted when a policy configuration version does not match the expected version.
+  error PolicyConfigurationVersionError(address policy, uint256 expectedVersion, uint256 actualVersion);
   /// @notice Error emitted when an extraction of parameters results in an error.
-  error ExtractorError(bytes4 selector, address extractor, bytes errorReason);
+  error ExtractorError(address extractor, bytes errorReason, Payload payload);
 
   /**
    * @notice Emitted when a target contract has attached to the policy engine.
@@ -44,24 +48,65 @@ interface IPolicyEngine {
   event TargetDetached(address indexed target);
 
   /**
+   * @notice Emitted when a policy configuration is performed.
+   * @param policy The address of the policy.
+   * @param configSelector The selector of the configuration function.
+   * @param configVersion The version of the configuration.
+   * @param configData The data of the configuration.
+   */
+  event PolicyConfigured(
+    address indexed policy, uint256 indexed configVersion, bytes4 indexed configSelector, bytes configData
+  );
+
+  /**
    * @notice Emitted when a policy engine run has completed successfully.
    * @param sender The sender of the transaction.
    * @param target The target contract that invoked the method.
    * @param selector The selector of the method invoked on the target.
+   * @param extractedParameters The parameters extracted from the payload for policy evaluation.
+   * @param context Additional context data from the payload.
    */
-  event PolicyRunComplete(address indexed sender, address indexed target, bytes4 indexed selector);
+  event PolicyRunComplete(
+    address indexed sender,
+    address indexed target,
+    bytes4 indexed selector,
+    Parameter[] extractedParameters,
+    bytes context
+  );
 
   /**
    * @notice Emitted when a policy is added to the policy engine.
    * @param target The address of the target contract for which the policy was configured.
    * @param selector The selector of the policy.
    * @param policy The policy address.
+   * @param position The position of the policy in the policy chain.
+   * @param policyParameterNames The parameter names for the policy.
    */
-  event PolicyAdded(address indexed target, bytes4 indexed selector, address policy);
+  event PolicyAdded(
+    address indexed target, bytes4 indexed selector, address policy, uint256 position, bytes32[] policyParameterNames
+  );
+
+  /**
+   * @notice Emitted when a policy is added to the policy engine at a specific position.
+   * @param target The address of the target contract for which the policy was configured.
+   * @param selector The selector of the policy.
+   * @param policy The policy address.
+   * @param position The position of the policy in the policy chain.
+   * @param policyParameterNames The parameter names for the policy.
+   * @param policies The complete ordered array of all policy addresses after the insertion.
+   */
+  event PolicyAddedAt(
+    address indexed target,
+    bytes4 indexed selector,
+    address policy,
+    uint256 position,
+    bytes32[] policyParameterNames,
+    address[] policies
+  );
 
   /**
    * @notice Emitted when a policy is removed from the policy engine.
-   * param target The address of the target contract for which the policy was configured.
+   * @param target The address of the target contract for which the policy was configured.
    * @param selector The selector of the policy.
    * @param policy The policy address.
    */
@@ -73,6 +118,13 @@ interface IPolicyEngine {
    * @param extractor The extractor address.
    */
   event ExtractorSet(bytes4 indexed selector, address indexed extractor);
+
+  /**
+   * @notice Emitted when a policy mapper is set for a policy.
+   * @param policy The policy address.
+   * @param mapper The mapper address.
+   */
+  event PolicyMapperSet(address indexed policy, address indexed mapper);
 
   /**
    * @notice Emitted when policy parameters are set for a policy.
@@ -132,6 +184,12 @@ interface IPolicyEngine {
     bytes32 name;
     bytes value;
   }
+
+  /**
+   * @notice Returns the type and version of the policy engine.
+   * @return A string representing the type and version of the policy engine.
+   */
+  function typeAndVersion() external pure returns (string memory);
 
   /**
    * @notice Attaches the calling contract to the policy engine.
@@ -227,6 +285,28 @@ interface IPolicyEngine {
    * @return The policies for the selector and target.
    */
   function getPolicies(address target, bytes4 selector) external view returns (address[] memory);
+
+  /**
+   * @notice Sets the configuration for a policy.
+   * @param policy The address of the policy to configure.
+   * @param configVersion The version of the configuration.
+   * @param configSelector The selector of the configuration function.
+   * @param configData The calldata for the configuration function.
+   */
+  function setPolicyConfiguration(
+    address policy,
+    uint256 configVersion,
+    bytes4 configSelector,
+    bytes calldata configData
+  )
+    external;
+
+  /**
+   * @notice Gets the current configuration version for a policy.
+   * @param policy The address of the policy.
+   * @return The current configuration version for the policy.
+   */
+  function getPolicyConfigVersion(address policy) external view returns (uint256);
 
   /**
    * @notice Sets whether to allow or reject the transaction if no policy explicitly returns an Allow or a Reject.

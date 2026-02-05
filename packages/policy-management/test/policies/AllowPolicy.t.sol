@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 import {AllowPolicy} from "@chainlink/policy-management/policies/AllowPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract AllowPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   AllowPolicy public allowPolicy;
   address public deployer;
   address public account;
@@ -30,21 +30,23 @@ contract AllowPolicyTest is BaseProxyTest {
     // add account by default
     allowPolicy.allowAddress(account);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     // set up the allowPolicy to check the recipient and origin of token transfers (multiple accounts)
     ERC20TransferExtractor transferExtractor = new ERC20TransferExtractor();
     bytes32[] memory transferPolicyParams = new bytes32[](2);
     transferPolicyParams[0] = transferExtractor.PARAM_TO();
     transferPolicyParams[1] = transferExtractor.PARAM_FROM();
-    policyEngine.setExtractor(MockToken.transfer.selector, address(transferExtractor));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(allowPolicy), transferPolicyParams);
+    policyEngine.setExtractor(MockTokenUpgradeable.transfer.selector, address(transferExtractor));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(allowPolicy), transferPolicyParams
+    );
     // set up the allowPolicy to check the mint account (single account)
     ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
     bytes32[] memory mintPolicyParams = new bytes32[](1);
     mintPolicyParams[0] = mintBurnExtractor.PARAM_ACCOUNT();
-    policyEngine.setExtractor(MockToken.mint.selector, address(mintBurnExtractor));
-    policyEngine.addPolicy(address(token), MockToken.mint.selector, address(allowPolicy), mintPolicyParams);
+    policyEngine.setExtractor(MockTokenUpgradeable.mint.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.mint.selector, address(allowPolicy), mintPolicyParams);
   }
 
   function test_allowAddress_succeeds() public {
@@ -113,8 +115,12 @@ contract AllowPolicyTest is BaseProxyTest {
     vm.startPrank(account, account);
 
     // transfer from address to recipient (reverts)
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(allowPolicy), "address is not on allow list")
+    _expectRejectedRevert(
+      address(allowPolicy),
+      "address is not on allow list",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -135,8 +141,12 @@ contract AllowPolicyTest is BaseProxyTest {
 
     // transfer from address to recipient (should revert after removal)
     vm.startPrank(account, account);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(allowPolicy), "address is not on allow list")
+    _expectRejectedRevert(
+      address(allowPolicy),
+      "address is not on allow list",
+      MockTokenUpgradeable.transfer.selector,
+      account,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -150,8 +160,12 @@ contract AllowPolicyTest is BaseProxyTest {
 
   function test_mint_notInList_failure() public {
     vm.startPrank(deployer, deployer);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(allowPolicy), "address is not on allow list")
+    _expectRejectedRevert(
+      address(allowPolicy),
+      "address is not on allow list",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 20)
     );
     token.mint(recipient, 20);
   }
@@ -160,15 +174,17 @@ contract AllowPolicyTest is BaseProxyTest {
     vm.startPrank(deployer);
     // misconfigure the allowPolicy to check burn operations (no accounts)
     ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
-    policyEngine.setExtractor(MockToken.burn.selector, address(mintBurnExtractor));
-    policyEngine.addPolicy(address(token), MockToken.burn.selector, address(allowPolicy), new bytes32[](0));
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(allowPolicy), new bytes32[](0));
 
-    bytes memory error = abi.encodeWithSignature("Error(string)", "expected at least 1 parameter");
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunError.selector, MockToken.burn.selector, address(allowPolicy), error
-      )
-    );
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(account, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected at least 1 parameter");
+    _expectRunError(address(allowPolicy), error, payload);
     token.burn(account, 100);
   }
 }

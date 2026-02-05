@@ -1,25 +1,27 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {ITrustedIssuerRegistry} from "./interfaces/ITrustedIssuerRegistry.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 
 /**
  * @title TrustedIssuerRegistry
  * @dev Implementation of the ITrustedIssuerRegistry interface using ERC-7201 storage pattern.
  */
-contract TrustedIssuerRegistry is PolicyProtected, ITrustedIssuerRegistry {
-  /// @custom:storage-location erc7201:cross-chain-identity.TrustedIssuerRegistry
+contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegistry {
+  string public constant override typeAndVersion = "TrustedIssuerRegistry 1.0.0";
+
+  /// @custom:storage-location erc7201:chainlink.ace.TrustedIssuerRegistry
   struct TrustedIssuerRegistryStorage {
     mapping(bytes32 issuerIdHash => bool isTrusted) trustedIssuers;
     bytes32[] issuerList;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("cross-chain-identity.TrustedIssuerRegistry")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.TrustedIssuerRegistry")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant trustedIssuerRegistryStorageLocation =
-    0x68705e3417317ecc3ac2b3879fdff408d88085552fb211d60abc5b025809c200;
+    0x24368af76f28f75e0d3c893af5175655a9b97a18e82e58c43f9152ef16421900;
 
   function _trustedIssuerRegistryStorage() private pure returns (TrustedIssuerRegistryStorage storage $) {
     assembly {
