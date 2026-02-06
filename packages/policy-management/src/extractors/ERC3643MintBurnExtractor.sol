@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IExtractor} from "@chainlink/policy-management/interfaces/IExtractor.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
@@ -12,6 +12,9 @@ import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
  *      and extracts the target account address and amount parameters from the function calldata.
  */
 contract ERC3643MintBurnExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ERC3643MintBurnExtractor 1.0.0";
+
   /// @notice Parameter key for the target account address in mint/burn operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");
 

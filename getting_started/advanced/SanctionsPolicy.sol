@@ -6,7 +6,9 @@ import {IPolicyEngine} from "../../packages/policy-management/src/interfaces/IPo
 import {SanctionsList} from "./SanctionsList.sol";
 
 contract SanctionsPolicy is Policy {
-  address public sanctionsList;
+    string public constant override typeAndVersion = "SanctionsPolicy 1.0.0";
+
+    address public sanctionsList;
 
   /**
    * @notice Configures the policy with the sanctions list address.
@@ -42,7 +44,9 @@ contract SanctionsPolicy is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    require(parameters.length == 1, "SanctionsPolicy: Expected 1 parameter");
+    if (parameters.length != 1) {
+      revert InvalidParameters("SanctionsPolicy: Expected 1 parameter");
+    }
     // This policy expects the "to" address as the first parameter
     address recipient = abi.decode(parameters[0], (address));
 

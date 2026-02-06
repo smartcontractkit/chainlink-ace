@@ -9,6 +9,12 @@ import {IPolicyEngine} from "./IPolicyEngine.sol";
  */
 interface IExtractor {
   /**
+   * @notice Returns the type and version of the extractor.
+   * @return A string representing the type and version of the extractor.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Extracts parameters from a payload.
    * @param payload The payload to extract parameters from.
    * @return The extracted parameters.

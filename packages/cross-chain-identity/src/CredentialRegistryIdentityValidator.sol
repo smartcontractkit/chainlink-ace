@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {ICredentialRequirements} from "./interfaces/ICredentialRequirements.sol";
 import {IIdentityValidator} from "./interfaces/IIdentityValidator.sol";
@@ -11,19 +11,20 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialRequirements, IIdentityValidator {
   uint256 private constant MAX_REQUIREMENTS = 8;
   uint256 private constant MAX_REQUIREMENT_SOURCES = 8;
+  uint256 private constant MAX_CREDENTIAL_TYPES_PER_REQUIREMENT = 32;
 
-  /// @custom:storage-location erc7201:cross-chain-identity.CredentialRegistryIdentityValidator
+  /// @custom:storage-location erc7201:chainlink.ace.CredentialRegistryIdentityValidator
   struct CredentialRegistryIdentityValidatorStorage {
     bytes32[] requirements;
     mapping(bytes32 requirementId => CredentialRequirement credentialRequirement) credentialRequirementMap;
     mapping(bytes32 credential => CredentialSource[] sources) credentialSources;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("cross-chain-identity.CredentialRegistryIdentityValidator")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.CredentialRegistryIdentityValidator")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant credentialRegistryIdentityValidatorStorageLocation =
-    0xc27301a28eb510a5458d7558b8bccbf4cdde3a4546d3bf041997133950e7d200;
+    0xd345ab5a3e8073283824dcc06e7ac0c586290818c864e9d2ee66361ecca47600;
 
   function _credentialRegistryIdentityValidatorStorage()
     private
@@ -34,6 +35,11 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     assembly {
       $.slot := credentialRegistryIdentityValidatorStorageLocation
     }
+  }
+
+  constructor() {
+    // disabling initializers on the implementation contract itself
+    _disableInitializers();
   }
 
   /**
@@ -96,6 +102,11 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
       }
     }
     bytes32[] memory credentialTypeIds = input.credentialTypeIds;
+    uint256 credentialTypesLength = credentialTypeIds.length;
+
+    if (credentialTypesLength == 0 || credentialTypesLength > MAX_CREDENTIAL_TYPES_PER_REQUIREMENT) {
+      revert InvalidRequirementConfiguration("Invalid credential types length");
+    }
     _credentialRegistryIdentityValidatorStorage().requirements.push(requirementId);
     _credentialRegistryIdentityValidatorStorage().credentialRequirementMap[requirementId] =
       CredentialRequirement(credentialTypeIds, minValidations, input.invert);

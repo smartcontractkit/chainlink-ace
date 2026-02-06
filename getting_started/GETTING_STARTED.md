@@ -436,6 +436,12 @@ You now understand the core ACE integration pattern:
 
 Choose your path based on what you want to build:
 
+#### **Upgrade an existing contract**
+
+Already have a deployed contract that needs ACE compliance? Follow our step-by-step upgrade guide:
+
+- **[Upgrade Guide](../UPGRADE_GUIDE.md)** - Add ACE to existing deployed contracts without disrupting functionality
+
 #### **Learn more about Policy Management**
 
 You've seen one policy (`PausePolicy`) on two functions. Ready to level up?

@@ -1,20 +1,30 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
 import {SecureMintPolicy} from "@chainlink/policy-management/policies/SecureMintPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {MockAggregatorV3} from "../helpers/MockAggregatorV3.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
+contract TokenWithoutDecimals {
+  function totalSupply() external pure returns (uint256) {
+    return 0;
+  }
+}
+
 contract SecureMintPolicyTest is BaseProxyTest {
+  uint8 private constant TOKEN_DECIMALS = 18;
+  uint8 private constant POR_FEED_DECIMALS = 18;
   PolicyEngine public policyEngine;
   SecureMintPolicy public policy;
   ERC3643MintBurnExtractor public extractor;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   MockAggregatorV3 public porFeed;
   address public deployer;
   address public recipient;
@@ -27,9 +37,9 @@ contract SecureMintPolicyTest is BaseProxyTest {
 
     policyEngine = _deployPolicyEngine(true, deployer);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
-    porFeed = new MockAggregatorV3(42 ether, 18);
+    porFeed = new MockAggregatorV3(42 ether, POR_FEED_DECIMALS);
 
     extractor = new ERC3643MintBurnExtractor();
     bytes32[] memory parameterOutputFormat = new bytes32[](1);
@@ -41,12 +51,20 @@ contract SecureMintPolicyTest is BaseProxyTest {
         address(policyImpl),
         address(policyEngine),
         deployer,
-        abi.encode(address(porFeed), SecureMintPolicy.ReserveMarginMode.None, 0, 0)
+        abi.encode(
+          address(porFeed),
+          SecureMintPolicy.ReserveMarginConfigs({
+            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None,
+            reserveMarginAmount: 0
+          }),
+          0,
+          SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
+        )
       )
     );
 
-    policyEngine.setExtractor(MockToken.mint.selector, address(extractor));
-    policyEngine.addPolicy(address(token), MockToken.mint.selector, address(policy), parameterOutputFormat);
+    policyEngine.setExtractor(MockTokenUpgradeable.mint.selector, address(extractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.mint.selector, address(policy), parameterOutputFormat);
 
     vm.warp(1737583804);
   }
@@ -61,12 +79,22 @@ contract SecureMintPolicyTest is BaseProxyTest {
     emit SecureMintPolicy.ReserveMarginSet(SecureMintPolicy.ReserveMarginMode.None, 0);
     vm.expectEmit();
     emit SecureMintPolicy.MaxStalenessSecondsSet(600);
+    vm.expectEmit();
+    emit SecureMintPolicy.TokenMetadataSet(address(token), TOKEN_DECIMALS);
     policy = SecureMintPolicy(
       _deployPolicy(
         address(policyImpl),
         address(policyEngine),
         deployer,
-        abi.encode(address(porFeed), SecureMintPolicy.ReserveMarginMode.None, 0, 600)
+        abi.encode(
+          address(porFeed),
+          SecureMintPolicy.ReserveMarginConfigs({
+            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None,
+            reserveMarginAmount: 0
+          }),
+          600,
+          SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
+        )
       )
     );
   }
@@ -98,6 +126,105 @@ contract SecureMintPolicyTest is BaseProxyTest {
     // Set the reserves feed to the same address
     vm.expectRevert("feed same as current");
     policy.setReservesFeed(address(porFeed));
+  }
+
+  function test_setTokenDecimals_succeeds() public {
+    uint8 newDecimals = 6;
+
+    vm.startPrank(deployer, deployer);
+
+    vm.recordLogs();
+    policy.setTokenMetadata(address(token), newDecimals);
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+    assertEq(entries.length, 1, "unexpected log count");
+    assertEq(entries[0].topics[0], keccak256("TokenMetadataSet(address,uint8)"));
+    (address loggedToken, uint8 loggedDecimals) = abi.decode(entries[0].data, (address, uint8));
+    assertEq(loggedToken, address(token));
+    assertEq(loggedDecimals, newDecimals);
+
+    bytes[] memory parameters = new bytes[](1);
+    parameters[0] = abi.encode(uint256(42 * (10 ** uint256(newDecimals))));
+    IPolicyEngine.PolicyResult result =
+      policy.run(deployer, address(token), MockTokenUpgradeable.mint.selector, parameters, bytes(""));
+    assertEq(uint256(result), uint256(IPolicyEngine.PolicyResult.Continue));
+
+    parameters[0] = abi.encode(uint256(42 * (10 ** uint256(newDecimals)) + 1));
+    vm.expectRevert(
+      abi.encodeWithSelector(IPolicyEngine.PolicyRejected.selector, "mint would exceed available reserves")
+    );
+    policy.run(deployer, address(token), MockTokenUpgradeable.mint.selector, parameters, bytes(""));
+  }
+
+  function test_setTokenDecimals_notOwner_reverts() public {
+    vm.startPrank(recipient, recipient);
+
+    vm.expectPartialRevert(OwnableUpgradeable.OwnableUnauthorizedAccount.selector);
+    policy.setTokenMetadata(address(token), 6);
+  }
+
+  function test_setTokenDecimals_tokenWithoutDecimalsInterface_succeeds() public {
+    TokenWithoutDecimals tokenWithoutDecimals = new TokenWithoutDecimals();
+
+    SecureMintPolicy policyImpl = new SecureMintPolicy();
+    SecureMintPolicy localPolicy = SecureMintPolicy(
+      _deployPolicy(
+        address(policyImpl),
+        address(policyEngine),
+        deployer,
+        abi.encode(
+          address(porFeed),
+          SecureMintPolicy.ReserveMarginMode.None,
+          0,
+          0,
+          SecureMintPolicy.TokenMetadata(address(tokenWithoutDecimals), TOKEN_DECIMALS)
+        )
+      )
+    );
+
+    vm.startPrank(deployer, deployer);
+
+    vm.recordLogs();
+    localPolicy.setTokenMetadata(address(tokenWithoutDecimals), 6);
+    Vm.Log[] memory entries = vm.getRecordedLogs();
+    assertEq(entries.length, 1, "unexpected log count");
+    assertEq(entries[0].topics[0], keccak256("TokenMetadataSet(address,uint8)"));
+    (address loggedToken, uint8 loggedDecimals) = abi.decode(entries[0].data, (address, uint8));
+    assertEq(loggedToken, address(tokenWithoutDecimals));
+    assertEq(loggedDecimals, 6);
+
+    vm.stopPrank();
+  }
+
+  function test_setTokenDecimals_tokenAddressMismatch_reverts() public {
+    vm.startPrank(deployer, deployer);
+    vm.expectRevert("token address mismatch");
+    policy.setTokenMetadata(makeAddr("wrong"), 6);
+    vm.stopPrank();
+  }
+
+  function test_setTokenDecimals_sameAsCurrent_reverts() public {
+    vm.startPrank(deployer, deployer);
+    vm.expectRevert("decimals same as current");
+    policy.setTokenMetadata(address(token), TOKEN_DECIMALS);
+    vm.stopPrank();
+  }
+
+  function test_setTokenDecimals_zeroDecimals_reverts() public {
+    vm.startPrank(deployer, deployer);
+    vm.expectRevert("decimals must be > 0");
+    policy.setTokenMetadata(address(token), 0);
+    vm.stopPrank();
+  }
+
+  function test_setTokenDecimals_tokenMetadataMismatch_reverts() public {
+    vm.mockCall(address(token), abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(7)));
+
+    vm.startPrank(deployer, deployer);
+    vm.expectRevert("decimals mismatch with token metadata");
+    policy.setTokenMetadata(address(token), 6);
+    vm.stopPrank();
+
+    vm.clearMockedCalls();
   }
 
   function test_setReserveMargin_succeeds() public {
@@ -195,8 +322,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 40 ether);
 
     // 40 + 3 > 42, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 3 ether)
     );
     token.mint(recipient, 3 ether);
 
@@ -227,8 +358,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setReserveMargin(SecureMintPolicy.ReserveMarginMode.PositivePercentage, 10000); // 100%
 
     // 0 + 0.1 > 0, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 0.1 ether)
     );
     token.mint(recipient, 0.1 ether);
   }
@@ -244,8 +379,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 30 ether);
 
     // 30 + 4 > 33.6, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 4 ether)
     );
     token.mint(recipient, 4 ether);
 
@@ -254,8 +393,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 33 ether);
 
     // 35 + 1 > 33.6, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 1 ether)
     );
     token.mint(recipient, 1 ether);
   }
@@ -285,9 +428,13 @@ contract SecureMintPolicyTest is BaseProxyTest {
     token.mint(recipient, 30 ether);
     assertEq(token.balanceOf(recipient), 30 ether);
 
-    // 30 + 15 > 40, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    // 30 + 12 > 40, reverts
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 12 ether)
     );
     token.mint(recipient, 12 ether);
 
@@ -296,8 +443,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 40 ether);
 
     // 40 + 1 > 40, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 1 ether)
     );
     token.mint(recipient, 1 ether);
   }
@@ -310,8 +461,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setReserveMargin(SecureMintPolicy.ReserveMarginMode.PositiveAbsolute, 50 ether);
 
     // 0 + 0.1 > 0, reverts (any minting should be blocked)
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 0.1 ether)
     );
     token.mint(recipient, 0.1 ether);
   }
@@ -357,8 +512,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 50 ether);
 
     // 50 + 0.5 <= 50.4, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 0.5 ether)
     );
     token.mint(recipient, 0.5 ether);
 
@@ -393,8 +552,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 30 ether);
 
     // 30 + 14.1 <= 44, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 14.1 ether)
     );
     token.mint(recipient, 14.1 ether);
 
@@ -403,8 +566,12 @@ contract SecureMintPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 44 ether);
 
     // 44 + 1 > 44, reverts
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.mint.selector, address(policy), "mint would exceed available reserves")
+    _expectRejectedRevert(
+      address(policy),
+      "mint would exceed available reserves",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 1 ether)
     );
     token.mint(recipient, 1 ether);
   }
@@ -425,7 +592,13 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setMaxStalenessSeconds(600);
 
     porFeed.setUpdatedAt(block.timestamp - 601);
-    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(policy), "reserve data is stale"));
+    _expectRejectedRevert(
+      address(policy),
+      "reserve data is stale",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 1 ether)
+    );
     token.mint(recipient, 1 ether);
   }
 
@@ -436,7 +609,13 @@ contract SecureMintPolicyTest is BaseProxyTest {
     porFeed.setPrice(-1 ether);
 
     // should revert because the reserve is negative
-    vm.expectRevert(_encodeRejectedRevert(MockToken.mint.selector, address(policy), "reserve value is negative"));
+    _expectRejectedRevert(
+      address(policy),
+      "reserve value is negative",
+      MockTokenUpgradeable.mint.selector,
+      deployer,
+      abi.encode(recipient, 1 ether)
+    );
     token.mint(recipient, 1 ether);
   }
 }

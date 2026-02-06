@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -72,5 +72,78 @@ abstract contract BaseProxyTest is Test {
     );
     ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), tokenData);
     return ComplianceTokenERC3643(address(tokenProxy));
+  }
+
+  /**
+   * @notice Expect a PolicyRunRejected revert with a payload created from parameters
+   * @param policy The address of the policy that rejected the action
+   * @param reason The reason for rejection
+   * @param selector The function selector
+   * @param sender The sender address
+   * @param data The encoded function parameters
+   * @param context The context bytes (defaults to empty if not provided)
+   */
+  function _expectRejectedRevert(
+    address policy,
+    string memory reason,
+    bytes4 selector,
+    address sender,
+    bytes memory data,
+    bytes memory context
+  )
+    internal
+  {
+    IPolicyEngine.Payload memory payload =
+      IPolicyEngine.Payload({selector: selector, sender: sender, data: data, context: context});
+    vm.expectRevert(abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, policy, reason, payload));
+  }
+
+  /**
+   * @notice Expect a PolicyRunRejected revert with a payload created from parameters (empty context)
+   * @param policy The address of the policy that rejected the action
+   * @param reason The reason for rejection
+   * @param selector The function selector
+   * @param sender The sender address
+   * @param data The encoded function parameters
+   */
+  function _expectRejectedRevert(
+    address policy,
+    string memory reason,
+    bytes4 selector,
+    address sender,
+    bytes memory data
+  )
+    internal
+  {
+    _expectRejectedRevert(policy, reason, selector, sender, data, "");
+  }
+
+  /**
+   * @notice Encode PolicyRunRejected error for use with vm.expectRevert
+   * @param policy The address of the policy that rejected the action
+   * @param reason The reason for rejection
+   * @param payload The payload that was rejected
+   * @return The encoded error data
+   */
+  function _encodeRejectedRevert(
+    address policy,
+    string memory reason,
+    IPolicyEngine.Payload memory payload
+  )
+    internal
+    pure
+    returns (bytes memory)
+  {
+    return abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, policy, reason, payload);
+  }
+
+  /**
+   * @notice Expect a PolicyRunRejected revert with a payload
+   * @param policy The address of the policy that rejected the action
+   * @param reason The reason for rejection
+   * @param payload The payload that was rejected
+   */
+  function _expectRejectedRevert(address policy, string memory reason, IPolicyEngine.Payload memory payload) internal {
+    vm.expectRevert(_encodeRejectedRevert(policy, reason, payload));
   }
 }

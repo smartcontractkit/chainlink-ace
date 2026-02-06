@@ -49,7 +49,8 @@ interface ICredentialRequirements {
    * @param requirementId The identifier of the requirement.
    * @param credentialTypeIds The credential type identifier(s) that satisfy the requirement.
    * @param minValidations The minimum number of validations required for the requirement.
-   * @param invert If the requirement is satisfied by the absence of all of the credential(s).
+   * @param invert If true, the requirement is satisfied when at least minValidations sources confirm the credential is
+   * absent. This is useful for requirements that are satisfied by the absence of a credential on multiple sources.
    */
   struct CredentialRequirementInput {
     bytes32 requirementId;

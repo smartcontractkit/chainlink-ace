@@ -8,20 +8,21 @@ This will teach you the core principles of policy development and provide a temp
 
 ## Step 1: The Policy Contract Boilerplate
 
-Every policy must inherit from the base `Policy` contract and implement the `run` function. Let's create our file `LockoutPolicy.sol` with the basic structure.
+Every policy must inherit from the base `Policy` contract, define its typeAndVersion and implement the `run` function. Let's create our file `LockoutPolicy.sol` with the basic structure.
 
 **`LockoutPolicy.sol`**
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import { Policy } from "@chainlink/policy-management/core/Policy.sol";
 import { IPolicyEngine } from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 
 contract LockoutPolicy is Policy {
-    // Our policy's logic will go here.
+    string public constant override typeAndVersion = "LockoutPolicy 1.0.0";
 
+    // Our policy's logic will go here.
     function run(
         address caller,
         address subject,
@@ -47,6 +48,8 @@ We also need a public function that the policy owner can call to add or update a
 // ... imports ...
 
 contract LockoutPolicy is Policy {
+    string public constant override typeAndVersion = "LockoutPolicy 1.0.0";
+
     mapping(address => uint256) public lockoutExpiresAt;
 
     /// @notice The policy owner can call this to lock an address.
@@ -149,12 +152,15 @@ Here is a clean, commented template that you can use as a starting point for you
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import { Policy } from "@chainlink/policy-management/core/Policy.sol";
 import { IPolicyEngine } from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 
 contract MyCustomPolicy is Policy {
+    // Define the policy type and version
+    string public constant override typeAndVersion = "MyCustomPolicy 1.0.0";
+
     /**
      * @notice Use the `configure` function to decode and store any initial
      * setup data passed into the `configParams` of the `initialize` function.

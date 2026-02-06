@@ -13,6 +13,12 @@ interface IPolicyProtected is IERC165 {
    * @param policyEngine The policy engine attached.
    */
   event PolicyEngineAttached(address indexed policyEngine);
+  /**
+   * @notice Emitted when a policy engine detach fails.
+   * @param policyEngine The policy engine that failed to detach.
+   * @param reason The reason the detach failed.
+   */
+  event PolicyEngineDetachFailed(address indexed policyEngine, bytes reason);
 
   /**
    * @notice Attaches a policy engine to the current contract.

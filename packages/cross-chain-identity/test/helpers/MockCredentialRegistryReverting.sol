@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {ICredentialRegistry} from "../../src/interfaces/ICredentialRegistry.sol";
 
@@ -9,6 +9,8 @@ import {ICredentialRegistry} from "../../src/interfaces/ICredentialRegistry.sol"
  * @dev Used for testing error handling in CredentialRegistryIdentityValidator
  */
 contract MockCredentialRegistryReverting is ICredentialRegistry {
+  string public constant override typeAndVersion = "MockCredentialRegistryReverting 1.0.0";
+
   bool private s_shouldRevert;
   string private s_revertMessage;
 

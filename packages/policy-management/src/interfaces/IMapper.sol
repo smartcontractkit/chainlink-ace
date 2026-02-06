@@ -9,6 +9,12 @@ import {IPolicyEngine} from "./IPolicyEngine.sol";
  */
 interface IMapper {
   /**
+   * @notice Returns the type and version of the mapper.
+   * @return A string representing the type and version of the mapper.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Maps extracted parameters to a list of policy parameters.
    * @param extractedParameters The extracted parameters.
    * @return The mapped parameters.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -12,6 +12,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * amount may differ from the amount parameter this policy validates against.
  */
 contract VolumePolicy is Policy {
+  string public constant override typeAndVersion = "VolumePolicy 1.0.0";
+
   /**
    * @notice Emitted when the maximum volume limit is set.
    * @param maxAmount The maximum amount parameter limit. If set to 0, there is no maximum limit.
@@ -23,7 +25,7 @@ contract VolumePolicy is Policy {
    */
   event MinVolumeSet(uint256 minAmount);
 
-  /// @custom:storage-location erc7201:policy-management.VolumePolicy
+  /// @custom:storage-location erc7201:chainlink.ace.VolumePolicy
   struct VolumePolicyStorage {
     /// @notice The maximum amount parameter limit. If set to 0, there is no maximum limit.
     uint256 maxAmount;
@@ -31,9 +33,9 @@ contract VolumePolicy is Policy {
     uint256 minAmount;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.VolumePolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.VolumePolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant VolumePolicyStorageLocation =
-    0x5bb13fe9284039d01609a8e5ed913ad65a3c270b5906b4fd9932815137778200;
+    0xdd888d8665dad1bb1ff8a8ea6b67594646c08e9b44b1c5c650075d4887d09500;
 
   function _getVolumePolicyStorage() private pure returns (VolumePolicyStorage storage $) {
     assembly {
@@ -119,7 +121,9 @@ contract VolumePolicy is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    require(parameters.length == 1, "expected 1 parameter");
+    if (parameters.length != 1) {
+      revert InvalidParameters("expected 1 parameter");
+    }
     uint256 amount = abi.decode(parameters[0], (uint256));
 
     // Gas optimization: load storage reference once

@@ -31,6 +31,12 @@ interface IIdentityRegistry {
   event IdentityRemoved(bytes32 indexed ccid, address indexed account);
 
   /**
+   * @notice Returns the type and version of the identity registry.
+   * @return A string representing the type and version of the identity registry.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Registers a new local account address for a cross-chain identity.
    *
    * - MUST be access controlled to prevent unauthorized identity registration.
@@ -72,7 +78,7 @@ interface IIdentityRegistry {
   /**
    * @notice Gets the common cross-chain identifier of an identity.
    * @param account The address of the account on this chain.
-   * @return the common cross-chain identifier of the identity.
+   * @return the common cross-chain identifier of the identity. Returns empty bytes32 if account is not found.
    */
   function getIdentity(address account) external view returns (bytes32);
 
