@@ -48,7 +48,7 @@ contract YourContract is PolicyProtected {
 - Functions to attach and manage your contract's connection to a `PolicyEngine`.
 - The ability to pass additional context data (like off-chain signatures) to your policies.
 
-> **Important:** `PolicyProtected` is an upgradeable base contract, which means **your contract must be deployed through a proxy** (like `ERC1967Proxy`). See the [deployment script example](#the-deployment-script) below for the pattern.
+> **Note:** ACE provides two variants: [`PolicyProtected`](../packages/policy-management/src/core/PolicyProtected.sol) for non-upgradeable contracts, and [`PolicyProtectedUpgradeable`](../packages/policy-management/src/core/PolicyProtectedUpgradeable.sol) for contracts deployed through an upgradeable proxy. See the [deployment script example](#the-deployment-script) below for the upgradeable pattern.
 
 ### Step 2: Protect your functions with the `runPolicy` modifier
 
@@ -161,7 +161,7 @@ Now that you understand the integration requirements, here's a complete, working
 
 This example includes:
 
-1. A simple vault contract that inherits from `PolicyProtected` ([`MyVault.sol`](./MyVault.sol)).
+1. A simple vault contract that inherits from `PolicyProtectedUpgradeable` ([`MyVault.sol`](./MyVault.sol)).
 2. A deployment script that sets up the `PolicyEngine` and attaches a `PausePolicy` ([`DeployGettingStarted.s.sol`](../script/getting_started/DeployGettingStarted.s.sol)).
 3. Test commands to demonstrate pausing and unpausing vault operations.
 
@@ -173,9 +173,9 @@ Here's the vault contract ([`getting_started/MyVault.sol`](./MyVault.sol)):
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 
-contract MyVault is PolicyProtected {
+contract MyVault is PolicyProtectedUpgradeable {
     mapping(address => uint256) public deposits;
 
     function initialize(address initialOwner, address policyEngine) public initializer {
@@ -197,7 +197,7 @@ contract MyVault is PolicyProtected {
 
 **Key takeaways:**
 
-- Inheritance from `PolicyProtected` (an upgradeable base contract)
+- Inheritance from `PolicyProtectedUpgradeable` (an upgradeable base contract)
 - `initialize()` function sets up the owner and connects to the `PolicyEngine`
 - Multiple functions can be protected with the `runPolicy` modifier
 - Each function can have different policies attached via the `PolicyEngine`
@@ -206,7 +206,7 @@ contract MyVault is PolicyProtected {
 
 Here's the deployment script ([`DeployGettingStarted.s.sol`](../script/getting_started/DeployGettingStarted.s.sol)):
 
-> **Note on Proxy Deployment:** All ACE components must be deployed behind a proxy because they use OpenZeppelin's upgradeable contracts pattern (disabled constructors with initializers). This guide uses `ERC1967Proxy`, which enables upgradeability—you can update contract logic while preserving state and addresses. In production, you may also encounter minimal proxies (clones) for components that don't require upgradeability.
+> **Note on Proxy Deployment:** `PolicyEngine` and contracts inheriting from `Policy` must be deployed behind a proxy because they follow OpenZeppelin's upgradeable contracts pattern (disabled constructors with initializers). This guide uses `ERC1967Proxy`, which enables upgradeability—you can update contract logic while preserving state and addresses. In production, you may also encounter minimal proxies (clones) for components that don't require upgradeability.
 
 ```solidity
 // SPDX-License-Identifier: BUSL-1.1
