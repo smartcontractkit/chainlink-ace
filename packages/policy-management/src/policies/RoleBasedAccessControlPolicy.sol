@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
@@ -21,6 +21,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * ```
  */
 contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
+  string public constant override typeAndVersion = "RoleBasedAccessControlPolicy 1.0.0";
+
   /**
    * @notice Emitted when the operation allowance is granted to a role.
    * @param operation The operation allowance to be granted.
@@ -34,17 +36,17 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
    */
   event OperationAllowanceRemovedFromRole(bytes4 operation, bytes32 role);
 
-  /// @custom:storage-location erc7201:policy-management.RoleBasedAccessControlPolicy
+  /// @custom:storage-location erc7201:chainlink.ace.RoleBasedAccessControlPolicy
   struct RoleBasedAccessControlPolicyStorage {
     /// @notice The mapping of operation allowances to roles. Each operation can have multiple roles that are allowed to
     /// perform it.
     mapping(bytes4 operation => bytes32[] roles) rolesByOperation;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.RoleBasedAccessControlPolicy")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.RoleBasedAccessControlPolicy")) - 1)) &
   // ~bytes32(uint256(0xff))
   bytes32 private constant RoleBasedAccessControlPolicyStorageLocation =
-    0xcebcf55b92595d67a9ed71c4c21ff1d547eba811760bfc05d1f636b4330cd900;
+    0x1b4b0f0c717e744fb925a01b36a4803be58ba564a24249e5a9f8f9bbe4d56f00;
 
   function _getRoleBasedAccessControlPolicyStorage()
     private
@@ -146,7 +148,7 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
     // expected parameters: none
     // solhint-disable-next-line gas-custom-errors
     if (parameters.length != 0) {
-      revert IPolicyEngine.InvalidConfiguration("expected 0 parameters");
+      revert InvalidParameters("expected 0 parameters");
     }
 
     if (!hasAllowedRole(selector, caller)) {

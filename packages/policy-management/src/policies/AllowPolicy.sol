@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
 
 /**
  * @title AllowPolicy
- * @notice A policy that permits method calls if all of the addresses are on an allowlist.
+ * @notice A filter policy that does not reject if all provided addresses are on an allowlist.
+ * Returns Continue on success (not Allowed).
  */
 contract AllowPolicy is Policy {
+  string public constant override typeAndVersion = "AllowPolicy 1.0.0";
+
   /**
    * @notice Emitted when an address is added to the allow list.
    * @param account The address that was added to the allow list.
@@ -21,15 +24,15 @@ contract AllowPolicy is Policy {
    */
   event AddressDisallowed(address indexed account);
 
-  /// @custom:storage-location erc7201:policy-management.AllowPolicy
+  /// @custom:storage-location erc7201:chainlink.ace.AllowPolicy
   struct AllowPolicyStorage {
     /// @notice If the address is not on this list, method calls will always be rejected.
     mapping(address account => bool isAllowed) allowList;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.AllowPolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.AllowPolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant AllowPolicyStorageLocation =
-    0x765cab6c47f7237f7aa9342433ee5465ec3e83a263328a78226aaa7d8727a800;
+    0xfe3a2b7f46cd21f6575f413edd13b679ddeba1bf1b08400ac236f2528fe97800;
 
   function _getAllowPolicyStorage() private pure returns (AllowPolicyStorage storage $) {
     assembly {
@@ -74,7 +77,7 @@ contract AllowPolicy is Policy {
    * @notice Function to be called by the policy engine to check if execution is allowed.
    * @param parameters encoded policy parameters.
    *        [account(address),...] List of addresses to check for present on the allow list.
-   * @return result The result of the policy check.
+   * @return result Continue when all decoded addresses are allowlisted (not Allowed).
    */
   function run(
     address, /*caller*/
@@ -88,7 +91,9 @@ contract AllowPolicy is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    require(parameters.length >= 1, "expected at least 1 parameter");
+    if (parameters.length < 1) {
+      revert InvalidParameters("expected at least 1 parameter");
+    }
 
     // Gas optimization: Load storage reference once instead of calling _getAllowPolicyStorage() in each iteration
     AllowPolicyStorage storage $ = _getAllowPolicyStorage();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -9,15 +9,29 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * @notice A policy that rejects method calls if one of the addresses is on the list.
  */
 contract RejectPolicy is Policy {
-  /// @custom:storage-location erc7201:policy-management.RejectPolicy
+  string public constant override typeAndVersion = "RejectPolicy 1.0.0";
+
+  /**
+   * @notice Emitted when an address is added to the reject list.
+   * @param account The address that was added to the reject list.
+   */
+  event AddressRejected(address indexed account);
+
+  /**
+   * @notice Emitted when an address is removed from the reject list.
+   * @param account The address that was removed from the reject list.
+   */
+  event AddressUnrejected(address indexed account);
+
+  /// @custom:storage-location erc7201:chainlink.ace.RejectPolicy
   struct RejectPolicyStorage {
     /// @notice If the address is on this list, method calls will always be rejected.
     mapping(address account => bool isRejected) rejectList;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.RejectPolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.RejectPolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant RejectPolicyStorageLocation =
-    0x616c7ef46b4b6f234c99b5c7b6e2de9ba93899829ad2bcb8a5a37d5cddf44600;
+    0xeecfc5c67f21030cde791970ef8f41abf2e2d0695c22a921730d1f81d87bbb00;
 
   function _getRejectPolicyStorage() private pure returns (RejectPolicyStorage storage $) {
     assembly {
@@ -34,6 +48,7 @@ contract RejectPolicy is Policy {
     RejectPolicyStorage storage $ = _getRejectPolicyStorage();
     require(!$.rejectList[account], "Account already in reject list");
     $.rejectList[account] = true;
+    emit AddressRejected(account);
   }
 
   /**
@@ -45,6 +60,7 @@ contract RejectPolicy is Policy {
     RejectPolicyStorage storage $ = _getRejectPolicyStorage();
     require($.rejectList[account], "Account not in reject list");
     $.rejectList[account] = false;
+    emit AddressUnrejected(account);
   }
 
   /**
@@ -75,7 +91,9 @@ contract RejectPolicy is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    require(parameters.length >= 1, "expected at least 1 parameter");
+    if (parameters.length < 1) {
+      revert InvalidParameters("expected at least 1 parameter");
+    }
     // Gas optimization: load storage reference once
     RejectPolicyStorage storage $ = _getRejectPolicyStorage();
     for (uint256 i = 0; i < parameters.length; i++) {

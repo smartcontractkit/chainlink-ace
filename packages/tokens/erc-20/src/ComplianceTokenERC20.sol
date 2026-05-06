@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ComplianceTokenStoreERC20} from "./ComplianceTokenStoreERC20.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -32,7 +32,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
  * @dev Note: Alternative implementations may handle frozen tokens differently,
  * such as automatically unfreezing tokens during operations for flexibility.
  */
-contract ComplianceTokenERC20 is Initializable, PolicyProtected, ComplianceTokenStoreERC20, IERC20 {
+contract ComplianceTokenERC20 is Initializable, PolicyProtectedUpgradeable, ComplianceTokenStoreERC20, IERC20 {
   /**
    * @notice Emitted when a freeze has been placed on an account.
    * @param account The address of the account whose tokens were frozen.
@@ -212,6 +212,7 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtected, ComplianceToken
     require(from != address(0), "transfer from the zero address");
     require(to != address(0), "transfer to the zero address");
 
+    _checkFrozenBalance(from, amount);
     _update(from, to, amount);
     emit ForceTransfer(from, to, amount);
   }
@@ -230,10 +231,6 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtected, ComplianceToken
 
   function getCCIPAdmin() public view virtual returns (address) {
     return owner();
-  }
-
-  function supportsInterface(bytes4 interfaceId) public view virtual override(PolicyProtected) returns (bool) {
-    return super.supportsInterface(interfaceId);
   }
 
   function _transfer(address from, address to, uint256 amount) internal {

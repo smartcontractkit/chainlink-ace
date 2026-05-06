@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IIdentityRegistry} from "./interfaces/IIdentityRegistry.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 
-contract IdentityRegistry is PolicyProtected, IIdentityRegistry {
-  /// @custom:storage-location erc7201:cross-chain-identity.IdentityRegistry
+contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
+  string public constant override typeAndVersion = "IdentityRegistry 1.0.0";
+
+  /// @custom:storage-location erc7201:chainlink.ace.IdentityRegistry
   struct IdentityRegistryStorage {
     mapping(address account => bytes32 ccid) accountToCcid;
     mapping(bytes32 ccid => address[] accounts) ccidToAccounts;
+    // Maps ccid => account => index in ccidToAccounts array (index + 1, 0 means not found)
+    mapping(bytes32 ccid => mapping(address account => uint256 index)) accountIndex;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("cross-chain-identity.IdentityRegistry")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.IdentityRegistry")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant identityRegistryStorageLocation =
-    0x95c7dd14054992de17881168e75df13bb7ed90a1eacfff26d4643d48ec30de00;
+    0x31dacf4de1329b533dc7ad419a7ae424eacaaf799ae802e5d062dea412180200;
 
   function _identityRegistryStorage() private pure returns (IdentityRegistryStorage storage $) {
     // solhint-disable-next-line no-inline-assembly
@@ -83,6 +87,8 @@ contract IdentityRegistry is PolicyProtected, IIdentityRegistry {
     }
     _identityRegistryStorage().accountToCcid[account] = ccid;
     _identityRegistryStorage().ccidToAccounts[ccid].push(account);
+    // Store index + 1 (so 0 means not found)
+    _identityRegistryStorage().accountIndex[ccid][account] = _identityRegistryStorage().ccidToAccounts[ccid].length;
     emit IdentityRegistered(ccid, account);
   }
 
@@ -97,18 +103,28 @@ contract IdentityRegistry is PolicyProtected, IIdentityRegistry {
     override
     runPolicyWithContext(context)
   {
-    uint256 length = _identityRegistryStorage().ccidToAccounts[ccid].length;
-    for (uint256 i = 0; i < length; i++) {
-      if (_identityRegistryStorage().ccidToAccounts[ccid][i] == account) {
-        _identityRegistryStorage().ccidToAccounts[ccid][i] = _identityRegistryStorage().ccidToAccounts[ccid][length - 1];
-        _identityRegistryStorage().ccidToAccounts[ccid].pop();
-        delete _identityRegistryStorage().accountToCcid[account];
-
-        emit IdentityRemoved(ccid, account);
-        return;
-      }
+    uint256 indexPlusOne = _identityRegistryStorage().accountIndex[ccid][account];
+    if (indexPlusOne == 0) {
+      revert IdentityNotFound(ccid, account);
     }
-    revert IdentityNotFound(ccid, account);
+
+    uint256 index = indexPlusOne - 1;
+    uint256 lastIndex = _identityRegistryStorage().ccidToAccounts[ccid].length - 1;
+
+    if (index != lastIndex) {
+      // Move the last element to the position being removed
+      address lastAccount = _identityRegistryStorage().ccidToAccounts[ccid][lastIndex];
+      _identityRegistryStorage().ccidToAccounts[ccid][index] = lastAccount;
+      // Update the moved account's index
+      _identityRegistryStorage().accountIndex[ccid][lastAccount] = indexPlusOne;
+    }
+
+    // Remove the last element
+    _identityRegistryStorage().ccidToAccounts[ccid].pop();
+    delete _identityRegistryStorage().accountToCcid[account];
+    delete _identityRegistryStorage().accountIndex[ccid][account];
+
+    emit IdentityRemoved(ccid, account);
   }
 
   /// @inheritdoc IIdentityRegistry

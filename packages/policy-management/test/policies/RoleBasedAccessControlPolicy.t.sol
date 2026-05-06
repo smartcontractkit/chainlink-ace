@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {RoleBasedAccessControlPolicy} from "@chainlink/policy-management/policies/RoleBasedAccessControlPolicy.sol";
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   RoleBasedAccessControlPolicy policy;
   PolicyEngine public policyEngine;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   address public deployer;
   address public txSender;
   address public recipient;
@@ -24,12 +24,12 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     policyEngine = _deployPolicyEngine(true, deployer);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     RoleBasedAccessControlPolicy policyImpl = new RoleBasedAccessControlPolicy();
     policy = RoleBasedAccessControlPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, ""));
 
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(policy), new bytes32[](0));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.transfer.selector, address(policy), new bytes32[](0));
   }
 
   function test_grantRoleRevokeRole_deployer_succeeds() public {
@@ -84,8 +84,8 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     // grant operation allowance to role
     vm.expectEmit();
-    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockToken.transfer.selector, role);
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, role);
+    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockTokenUpgradeable.transfer.selector, role);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, role);
   }
 
   function test_grantOperationAllowanceToRole_alreadyExist_fails() public {
@@ -94,12 +94,12 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     // grant operation allowance to role (sanity check)
     vm.expectEmit();
-    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockToken.transfer.selector, role);
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, role);
+    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockTokenUpgradeable.transfer.selector, role);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, role);
 
     // grant again (revert)
     vm.expectRevert("Role already has operation allowance");
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, role);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, role);
   }
 
   function test_removeOperationAllowanceFromRole_succeeds() public {
@@ -108,13 +108,13 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     // grant operation allowance to role (sanity check)
     vm.expectEmit();
-    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockToken.transfer.selector, role);
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, role);
+    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(MockTokenUpgradeable.transfer.selector, role);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, role);
 
     // remove operation allowance from role
     vm.expectEmit();
-    emit RoleBasedAccessControlPolicy.OperationAllowanceRemovedFromRole(MockToken.transfer.selector, role);
-    policy.removeOperationAllowanceFromRole(MockToken.transfer.selector, role);
+    emit RoleBasedAccessControlPolicy.OperationAllowanceRemovedFromRole(MockTokenUpgradeable.transfer.selector, role);
+    policy.removeOperationAllowanceFromRole(MockTokenUpgradeable.transfer.selector, role);
   }
 
   function test_removeOperationAllowanceFromRole_invalidOperation_fails() public {
@@ -123,14 +123,18 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     // remove invalid operation allowance from role (revert)
     vm.expectRevert("Role does not have operation allowance");
-    policy.removeOperationAllowanceFromRole(MockToken.transfer.selector, role);
+    policy.removeOperationAllowanceFromRole(MockTokenUpgradeable.transfer.selector, role);
   }
 
   function test_transfer_senderWithoutRole_reverts() public {
     vm.startPrank(txSender);
 
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    _expectRejectedRevert(
+      address(policy),
+      "caller lacks required role for operation",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -138,7 +142,7 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   function test_transfer_withRoleAssociatedToOperation_succeeds() public {
     vm.startPrank(deployer);
     bytes32 allowedRole = keccak256("allowedRole");
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, allowedRole);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, allowedRole);
     policy.grantRole(allowedRole, txSender);
 
     vm.startPrank(txSender);
@@ -155,8 +159,12 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
 
     vm.startPrank(txSender);
 
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    _expectRejectedRevert(
+      address(policy),
+      "caller lacks required role for operation",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -164,7 +172,7 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   function test_transfer_withRoleAssignedToUserAndRevokedFromOperation_reverts() public {
     vm.startPrank(deployer);
     bytes32 allowedRole = keccak256("allowedRole");
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, allowedRole);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, allowedRole);
     policy.grantRole(allowedRole, txSender);
 
     // sanity check
@@ -173,11 +181,15 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     assertEq(token.balanceOf(recipient), 100);
 
     vm.startPrank(deployer);
-    policy.removeOperationAllowanceFromRole(MockToken.transfer.selector, allowedRole);
+    policy.removeOperationAllowanceFromRole(MockTokenUpgradeable.transfer.selector, allowedRole);
 
     vm.startPrank(txSender);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    _expectRejectedRevert(
+      address(policy),
+      "caller lacks required role for operation",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
     assertEq(token.balanceOf(recipient), 100);
@@ -186,7 +198,7 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   function test_transfer_senderWithRoleAssociatedToOperationButRevoked_reverts() public {
     vm.startPrank(deployer);
     bytes32 allowedRole = keccak256("allowedRole");
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, allowedRole);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, allowedRole);
     policy.grantRole(allowedRole, txSender);
 
     // sanity check
@@ -198,8 +210,12 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     policy.revokeRole(allowedRole, txSender);
 
     vm.startPrank(txSender);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    _expectRejectedRevert(
+      address(policy),
+      "caller lacks required role for operation",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
 
@@ -209,14 +225,18 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
   function test_transfer_senderWithDifferentRole_reverts() public {
     vm.startPrank(deployer);
     bytes32 allowedRole = keccak256("allowedRole");
-    policy.grantOperationAllowanceToRole(MockToken.transfer.selector, allowedRole);
+    policy.grantOperationAllowanceToRole(MockTokenUpgradeable.transfer.selector, allowedRole);
 
     bytes32 anotherRole = keccak256("anotherRole");
     policy.grantRole(anotherRole, txSender);
 
     vm.startPrank(txSender);
-    vm.expectRevert(
-      _encodeRejectedRevert(MockToken.transfer.selector, address(policy), "caller lacks required role for operation")
+    _expectRejectedRevert(
+      address(policy),
+      "caller lacks required role for operation",
+      MockTokenUpgradeable.transfer.selector,
+      txSender,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }

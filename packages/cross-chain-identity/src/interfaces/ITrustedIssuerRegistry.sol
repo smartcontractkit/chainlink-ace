@@ -29,6 +29,12 @@ interface ITrustedIssuerRegistry {
   // ------------------------------------------------------------------------
 
   /**
+   * @notice Returns the type and version of the trusted issuer registry.
+   * @return A string representing the type and version of the trusted issuer registry.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Adds a new trusted issuer.
    * @param issuerId The issuerId string of the issuer.
    * @param context Additional information or authorization to perform the operation.

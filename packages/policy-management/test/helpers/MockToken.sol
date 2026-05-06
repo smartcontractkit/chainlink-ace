@@ -2,9 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract MockToken is Initializable, PolicyProtected {
+contract MockToken is PolicyProtected {
   mapping(address account => uint256 balance) public s_balances;
   uint256 public totalSupply = 0;
   bool public paused;
@@ -18,9 +17,7 @@ contract MockToken is Initializable, PolicyProtected {
     _;
   }
 
-  function initialize(address policyEngine) external initializer {
-    __PolicyProtected_init(msg.sender, policyEngine);
-  }
+  constructor(address policyEngine) PolicyProtected(msg.sender, policyEngine) {}
 
   function transfer(address to, uint256 amount) external whenNotPaused runPolicy {
     s_balances[to] += amount;

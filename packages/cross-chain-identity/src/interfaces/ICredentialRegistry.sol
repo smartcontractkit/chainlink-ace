@@ -56,6 +56,12 @@ interface ICredentialRegistry is ICredentialValidator {
   );
 
   /**
+   * @notice Returns the type and version of the credential registry.
+   * @return A string representing the type and version of the credential registry.
+   */
+  function typeAndVersion() external pure returns (string memory);
+
+  /**
    * @notice Registers a credential for an account.
    *
    * - MUST revert with `CredentialAlreadyRegistered` if the credential is already registered.

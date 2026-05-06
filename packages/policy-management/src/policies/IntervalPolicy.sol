@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -40,6 +40,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  *   with a 4-slot offset, effectively shifting the cycle start.
  */
 contract IntervalPolicy is Policy {
+  string public constant override typeAndVersion = "IntervalPolicy 1.0.0";
+
   /**
    * @notice Emitted when the start slot is updated.
    * @param startSlot The new start slot (inclusive).
@@ -60,23 +62,31 @@ contract IntervalPolicy is Policy {
    */
   event CycleParametersSet(uint256 slotDuration, uint256 cycleSize, uint256 cycleOffset);
 
-  /// @custom:storage-location erc7201:policy-management.IntervalPolicy
-  struct IntervalPolicyStorage {
-    /// @notice Duration (in seconds) of each slot (e.g., 3600 for 1 hour, 86400 for 1 day).
+  /**
+   * @notice The cycle parameters for the interval policy.
+   * @param slotDuration Duration (in seconds) of each slot (e.g., 3600 for 1 hour, 86400 for 1 day).
+   * @param cycleSize Total count of slots in each repeating cycle (e.g., 24 for daily hours, 7 for days in a week).
+   * @param cycleOffset An offset (in slots) added to the computed slot index before taking modulo `cycleSize`.
+   */
+  struct CycleParameters {
     uint256 slotDuration;
-    /// @notice Total count of slots in each repeating cycle (e.g., 24 for daily hours, 7 for days in a week).
     uint256 cycleSize;
-    /// @notice An offset (in slots) added to the computed slot index before taking modulo `s_cycleSize`.
     uint256 cycleOffset;
+  }
+
+  /// @custom:storage-location erc7201:chainlink.ace.IntervalPolicy
+  struct IntervalPolicyStorage {
+    /// @notice Cycle parameters (slot duration, cycle size, and cycle offset).
+    CycleParameters cycleParams;
     /// @notice Starting slot index (inclusive) within the cycle where execution is allowed.
     uint256 startSlot;
     /// @notice Ending slot index (exclusive) within the cycle where execution is allowed.
     uint256 endSlot;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.IntervalPolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.IntervalPolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant IntervalPolicyStorageLocation =
-    0x240ccc3ae077efd7406ec291c47a6b567b6d85c851c6ee4f4a2a0a955805cd00;
+    0xf4d2d1ec39bef5e25c2fa41ecc5189c68f679323f7f598f7e6231997bb5b8700;
 
   function _getIntervalPolicyStorage() private pure returns (IntervalPolicyStorage storage $) {
     assembly {
@@ -89,70 +99,72 @@ contract IntervalPolicy is Policy {
    * @dev The `parameters` input must be the ABI encoding of the following:
    *      - startSlot (uint256)
    *      - endSlot (uint256)
-   *      - slotDuration (uint256)
-   *      - cycleSize (uint256)
-   *      - cycleOffset (uint256)
+   *      - CycleParameters struct
    *
    * @param parameters ABI-encoded bytes containing the configuration parameters.
    */
   function configure(bytes calldata parameters) internal override onlyInitializing {
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    ($.startSlot, $.endSlot, $.slotDuration, $.cycleSize, $.cycleOffset) =
-      abi.decode(parameters, (uint256, uint256, uint256, uint256, uint256));
+    (uint256 startSlot, uint256 endSlot, CycleParameters memory cycleParams) =
+      abi.decode(parameters, (uint256, uint256, CycleParameters));
 
-    require($.startSlot < $.endSlot, "End slot must be greater than start slot");
-    require($.cycleSize > 0, "Cycle size must be > 0");
-    require($.endSlot <= $.cycleSize, "Cycle size must be >= end slot");
-    require($.slotDuration > 0, "Slot duration must be > 0");
-    require($.cycleOffset < $.cycleSize, "Cycle offset must be < cycle size");
+    require(startSlot < endSlot, "End slot must be greater than start slot");
+    require(cycleParams.cycleSize > 0, "Cycle size must be > 0");
+    require(endSlot <= cycleParams.cycleSize, "Cycle size must be >= end slot");
+    require(cycleParams.slotDuration > 0, "Slot duration must be > 0");
+    require(cycleParams.cycleOffset < cycleParams.cycleSize, "Cycle offset must be < cycle size");
 
-    emit StartSlotSet($.startSlot);
-    emit EndSlotSet($.endSlot);
-    emit CycleParametersSet($.slotDuration, $.cycleSize, $.cycleOffset);
+    $.startSlot = startSlot;
+    $.endSlot = endSlot;
+    $.cycleParams = cycleParams;
+
+    emit StartSlotSet(startSlot);
+    emit EndSlotSet(endSlot);
+    emit CycleParametersSet(cycleParams.slotDuration, cycleParams.cycleSize, cycleParams.cycleOffset);
   }
 
   /**
    * @notice Updates the start slot within the cycle.
    * @dev Must be less than the current end slot. Only callable by the owner.
-   * @param _startSlot The new start slot (inclusive).
+   * @param startSlot The new start slot (inclusive).
    */
-  function setStartSlot(uint256 _startSlot) public onlyOwner {
+  function setStartSlot(uint256 startSlot) public onlyOwner {
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    require(_startSlot < $.endSlot, "New start slot must be < end slot");
-    $.startSlot = _startSlot;
-    emit StartSlotSet(_startSlot);
+    require(startSlot < $.endSlot, "New start slot must be < end slot");
+    $.startSlot = startSlot;
+    emit StartSlotSet(startSlot);
   }
 
   /**
    * @notice Updates the end slot within the cycle.
    * @dev Must be greater than the current start slot and less than the cycle size. Only callable by the owner.
-   * @param _endSlot The new end slot (exclusive).
+   * @param endSlot The new end slot (exclusive).
    */
-  function setEndSlot(uint256 _endSlot) public onlyOwner {
+  function setEndSlot(uint256 endSlot) public onlyOwner {
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    require(_endSlot > $.startSlot, "End slot must be greater than start slot");
-    require(_endSlot <= $.cycleSize, "End slot must be <= cycle size");
-    $.endSlot = _endSlot;
-    emit EndSlotSet(_endSlot);
+    require(endSlot > $.startSlot, "End slot must be greater than start slot");
+    require(endSlot <= $.cycleParams.cycleSize, "End slot must be <= cycle size");
+    $.endSlot = endSlot;
+    emit EndSlotSet(endSlot);
   }
 
   /**
    * @notice Updates the slot duration, cycle size, and cycle offset parameters.
    * @dev Ensures the current `s_endSlot` remains valid under the new cycle size. Only callable by owner.
-   * @param _slotDuration  The duration of each slot in seconds. Must be > 0.
-   * @param _cycleSize     The total number of slots in each cycle. Must be > current `s_endSlot`.
-   * @param _cycleOffset   The offset (in slots) applied to the computed time slot. Must be < `_cycleSize`.
+   * @param slotDuration  The duration of each slot in seconds. Must be > 0.
+   * @param cycleSize     The total number of slots in each cycle. Must be > current `s_endSlot`.
+   * @param cycleOffset   The offset (in slots) applied to the computed time slot. Must be < `cycleSize`.
    */
-  function setCycleParameters(uint256 _slotDuration, uint256 _cycleSize, uint256 _cycleOffset) public onlyOwner {
+  function setCycleParameters(uint256 slotDuration, uint256 cycleSize, uint256 cycleOffset) public onlyOwner {
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    require(_slotDuration > 0, "Slot duration must be > 0");
-    require(_cycleSize >= $.endSlot, "New cycle size must be >= end slot");
-    require(_cycleOffset < _cycleSize, "Cycle offset must be < cycle size");
+    require(slotDuration > 0, "Slot duration must be > 0");
+    require(cycleSize >= $.endSlot, "New cycle size must be >= end slot");
+    require(cycleOffset < cycleSize, "Cycle offset must be < cycle size");
 
-    $.slotDuration = _slotDuration;
-    $.cycleSize = _cycleSize;
-    $.cycleOffset = _cycleOffset;
-    emit CycleParametersSet(_slotDuration, _cycleSize, _cycleOffset);
+    $.cycleParams.slotDuration = slotDuration;
+    $.cycleParams.cycleSize = cycleSize;
+    $.cycleParams.cycleOffset = cycleOffset;
+    emit CycleParametersSet(slotDuration, cycleSize, cycleOffset);
   }
 
   /**
@@ -181,7 +193,7 @@ contract IntervalPolicy is Policy {
    */
   function getCycleParameters() public view returns (uint256 slotDuration, uint256 cycleSize, uint256 cycleOffset) {
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    return ($.slotDuration, $.cycleSize, $.cycleOffset);
+    return ($.cycleParams.slotDuration, $.cycleParams.cycleSize, $.cycleParams.cycleOffset);
   }
 
   /**
@@ -214,7 +226,11 @@ contract IntervalPolicy is Policy {
 
     // Gas optimization: load storage reference once
     IntervalPolicyStorage storage $ = _getIntervalPolicyStorage();
-    uint256 currentSlot = ((block.timestamp / $.slotDuration) + $.cycleOffset) % $.cycleSize;
+
+    // calculate the current slot in an overflow-safe way
+    uint256 base = (block.timestamp / $.cycleParams.slotDuration) % $.cycleParams.cycleSize;
+    uint256 currentSlot = addmod(base, $.cycleParams.cycleOffset, $.cycleParams.cycleSize);
+
     if (currentSlot >= $.startSlot && currentSlot < $.endSlot) {
       return IPolicyEngine.PolicyResult.Continue;
     }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -9,16 +9,30 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * @notice A policy that rejects method calls if the sender is not on the authorized list.
  */
 contract OnlyAuthorizedSenderPolicy is Policy {
-  /// @custom:storage-location erc7201:policy-management.OnlyAuthorizedSenderPolicy
+  string public constant override typeAndVersion = "OnlyAuthorizedSenderPolicy 1.0.0";
+
+  /**
+   * @notice Emitted when an address is added to the authorized list.
+   * @param account The address that was added to the authorized list.
+   */
+  event SenderAuthorized(address indexed account);
+
+  /**
+   * @notice Emitted when an address is removed from the authorized list.
+   * @param account The address that was removed from the authorized list.
+   */
+  event SenderUnauthorized(address indexed account);
+
+  /// @custom:storage-location erc7201:chainlink.ace.OnlyAuthorizedSenderPolicy
   struct OnlyAuthorizedSenderPolicyStorage {
     /// @notice If the sender is not on this list, method calls will be rejected.
     mapping(address account => bool isAuthorized) authorizedList;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.OnlyAuthorizedSenderPolicy")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.OnlyAuthorizedSenderPolicy")) - 1)) &
   // ~bytes32(uint256(0xff))
   bytes32 private constant OnlyAuthorizedSenderPolicyStorageLocation =
-    0x55dec33488a1029cdcf3599ee8cd33d98db3bd4dac88355b9ed7e751c3fe6a00;
+    0xf5e87b41ae1e6f60454a33452cadabdaed7b05c24f478c8f965bcfaf36872f00;
 
   function _getOnlyAuthorizedSenderPolicyStorage() private pure returns (OnlyAuthorizedSenderPolicyStorage storage $) {
     assembly {
@@ -35,6 +49,7 @@ contract OnlyAuthorizedSenderPolicy is Policy {
     OnlyAuthorizedSenderPolicyStorage storage $ = _getOnlyAuthorizedSenderPolicyStorage();
     require(!$.authorizedList[account], "Account already in authorized list");
     $.authorizedList[account] = true;
+    emit SenderAuthorized(account);
   }
 
   /**
@@ -46,6 +61,7 @@ contract OnlyAuthorizedSenderPolicy is Policy {
     OnlyAuthorizedSenderPolicyStorage storage $ = _getOnlyAuthorizedSenderPolicyStorage();
     require($.authorizedList[account], "Account not in authorized list");
     $.authorizedList[account] = false;
+    emit SenderUnauthorized(account);
   }
 
   /**

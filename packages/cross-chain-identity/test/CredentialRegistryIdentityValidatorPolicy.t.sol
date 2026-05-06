@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
@@ -7,6 +7,7 @@ import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidatorPolicy} from "../src/CredentialRegistryIdentityValidatorPolicy.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
+import {Policy} from "@chainlink/policy-management/core/Policy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
@@ -110,5 +111,61 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
 
     IPolicyEngine.PolicyResult policyRes = policy.run(address(0), address(0), 0x00000000, parameters, "");
     assert(policyRes == IPolicyEngine.PolicyResult.Continue);
+  }
+
+  function test_run_multipleAddresses_allValid_continue() public {
+    address account1 = makeAddr("account1");
+    address account2 = makeAddr("account2");
+    bytes32 ccid1 = keccak256("account1");
+    bytes32 ccid2 = keccak256("account2");
+
+    s_identityRegistry.registerIdentity(ccid1, account1, "");
+    s_credentialRegistry.registerCredential(ccid1, CREDENTIAL_KYC, 0, "", "");
+
+    s_identityRegistry.registerIdentity(ccid2, account2, "");
+    s_credentialRegistry.registerCredential(ccid2, CREDENTIAL_KYC, 0, "", "");
+
+    assertTrue(s_identityValidatorPolicy.validate(account1, ""));
+    assertTrue(s_identityValidatorPolicy.validate(account2, ""));
+
+    bytes[] memory parameters = new bytes[](2);
+    parameters[0] = abi.encode(account1);
+    parameters[1] = abi.encode(account2);
+
+    IPolicyEngine.PolicyResult policyRes =
+      s_identityValidatorPolicy.run(address(0), address(0), 0x00000000, parameters, "");
+    assert(policyRes == IPolicyEngine.PolicyResult.Continue);
+  }
+
+  function test_run_multipleAddresses_oneInvalid_rejected() public {
+    address account1 = makeAddr("account1");
+    address account2 = makeAddr("account2");
+    bytes32 ccid1 = keccak256("account1");
+    bytes32 ccid2 = keccak256("account2");
+
+    s_identityRegistry.registerIdentity(ccid1, account1, "");
+    s_credentialRegistry.registerCredential(ccid1, CREDENTIAL_KYC, 0, "", "");
+
+    // Register identity but not credential for account2
+    s_identityRegistry.registerIdentity(ccid2, account2, "");
+
+    assertTrue(s_identityValidatorPolicy.validate(account1, ""));
+    assertFalse(s_identityValidatorPolicy.validate(account2, ""));
+
+    bytes[] memory parameters = new bytes[](2);
+    parameters[0] = abi.encode(account1);
+    parameters[1] = abi.encode(account2);
+
+    vm.expectPartialRevert(IPolicyEngine.PolicyRejected.selector);
+    IPolicyEngine.PolicyResult policyRes =
+      s_identityValidatorPolicy.run(address(0), address(0), 0x00000000, parameters, "");
+  }
+
+  function test_run_noParameters_rejected() public {
+    bytes[] memory parameters = new bytes[](0);
+
+    vm.expectRevert(abi.encodeWithSelector(Policy.InvalidParameters.selector, "expected at least 1 parameter"));
+    IPolicyEngine.PolicyResult policyRes =
+      s_identityValidatorPolicy.run(address(0), address(0), 0x00000000, parameters, "");
   }
 }

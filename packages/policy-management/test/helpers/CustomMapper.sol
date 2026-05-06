@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IMapper} from "../../src/interfaces/IMapper.sol";
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 
 contract CustomMapper is IMapper {
+  string public constant override typeAndVersion = "CustomMapper 1.0.0";
+
   bytes[] private s_mappedParameters;
 
   function setMappedParameters(bytes[] memory mappedParameters) public {

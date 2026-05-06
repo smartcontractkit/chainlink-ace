@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {Policy} from "@chainlink/policy-management/core/Policy.sol";
@@ -10,15 +10,29 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * subsequent policies in the chain.
  */
 contract BypassPolicy is Policy {
-  /// @custom:storage-location erc7201:policy-management.BypassPolicy
+  string public constant override typeAndVersion = "BypassPolicy 1.0.0";
+
+  /**
+   * @notice Emitted when an address is added to the bypass list.
+   * @param account The address that was added to the bypass list.
+   */
+  event AddressAllowed(address indexed account);
+
+  /**
+   * @notice Emitted when an address is removed from the bypass list.
+   * @param account The address that was removed from the bypass list.
+   */
+  event AddressDisallowed(address indexed account);
+
+  /// @custom:storage-location erc7201:chainlink.ace.BypassPolicy
   struct BypassPolicyStorage {
     /// @notice If the address is on this list, method calls will always be allowed.
     mapping(address account => bool isAllowed) allowList;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("policy-management.BypassPolicy")) - 1)) & ~bytes32(uint256(0xff))
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.BypassPolicy")) - 1)) & ~bytes32(uint256(0xff))
   bytes32 private constant BypassPolicyStorageLocation =
-    0x58a84146d7d8a792905a46c0c78d69c71c1cf7909b1068f119d17e740a8cb600;
+    0x813bf0d2fec0f79acde423921d4b30ec3fa5f750ddd7c4ef51c8d6f81af7aa00;
 
   function _getBypassPolicyStorage() private pure returns (BypassPolicyStorage storage $) {
     assembly {
@@ -35,6 +49,7 @@ contract BypassPolicy is Policy {
     BypassPolicyStorage storage $ = _getBypassPolicyStorage();
     require(!$.allowList[account], "Account already in bypass list");
     $.allowList[account] = true;
+    emit AddressAllowed(account);
   }
 
   /**
@@ -46,6 +61,7 @@ contract BypassPolicy is Policy {
     BypassPolicyStorage storage $ = _getBypassPolicyStorage();
     require($.allowList[account], "Account not in bypass list");
     $.allowList[account] = false;
+    emit AddressDisallowed(account);
   }
 
   /**
@@ -76,7 +92,9 @@ contract BypassPolicy is Policy {
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    require(parameters.length >= 1, "expected at least 1 parameter");
+    if (parameters.length < 1) {
+      revert InvalidParameters("expected at least 1 parameter");
+    }
     // Gas optimization: load storage reference once
     BypassPolicyStorage storage $ = _getBypassPolicyStorage();
     for (uint256 i = 0; i < parameters.length; i++) {

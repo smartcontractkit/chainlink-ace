@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {PolicyEngine} from "../src/core/PolicyEngine.sol";
 import {PolicyFactory} from "../src/core/PolicyFactory.sol";

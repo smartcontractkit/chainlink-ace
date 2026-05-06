@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 contract ComplianceTokenStoreERC3643 {
-  /// @custom:storage-location erc7201:compliance-token-erc3643.ComplianceTokenStoreERC3643
+  /// @custom:storage-location erc7201:chainlink.ace.ComplianceTokenStoreERC3643
   struct ComplianceTokenStorage {
     string tokenName;
     string tokenSymbol;
@@ -15,11 +15,11 @@ contract ComplianceTokenStoreERC3643 {
     mapping(address userAddress => uint256 amount) frozenTokens;
   }
 
-  // keccak256(abi.encode(uint256(keccak256("compliance-token-erc3643.ComplianceTokenStoreERC3643")) - 1)) &
+  // keccak256(abi.encode(uint256(keccak256("chainlink.ace.ComplianceTokenStoreERC3643")) - 1)) &
   // ~bytes32(uint256(0xff))
   // solhint-disable-next-line const-name-snakecase
   bytes32 private constant complianceTokenStorageLocation =
-    0xdc918d90baf191b8d972d59f66f8d1c2691d3df52961983ba712e24ad9fcd600;
+    0x3f34113fb156b97e13dc3904401b33793726479947cfe0b61cd6a8cd6d196f00;
 
   function getComplianceTokenStorage() internal pure returns (ComplianceTokenStorage storage $) {
     // solhint-disable-next-line no-inline-assembly

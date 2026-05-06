@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.26;
+pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
 import {IntervalPolicy} from "@chainlink/policy-management/policies/IntervalPolicy.sol";
-import {MockToken} from "../helpers/MockToken.sol";
+import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract IntervalPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
   IntervalPolicy public intervalPolicy;
-  MockToken public token;
+  MockTokenUpgradeable public token;
   address public deployer;
   address public recipient;
   uint256 public OFFSET_TIMESTAMP = 1737470407; // 	Tue Jan 21 2025 14:40:07
@@ -23,20 +23,24 @@ contract IntervalPolicyTest is BaseProxyTest {
 
     policyEngine = _deployPolicyEngine(true, deployer);
 
-    token = MockToken(_deployMockToken(address(policyEngine)));
+    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
 
     IntervalPolicy intervalPolicyImpl = new IntervalPolicy();
     bytes memory configParamBytes = abi.encode(
       11, // start slot
       17, // end slot
-      1 hours, // slot duration
-      24, // cycle size (24 slots for 24 hours)
-      0 // cycle offset
+      IntervalPolicy.CycleParameters({
+        slotDuration: 1 hours,
+        cycleSize: 24, // 24 slots for 24 hours
+        cycleOffset: 0
+      })
     );
     intervalPolicy =
       IntervalPolicy(_deployPolicy(address(intervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
 
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(intervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(intervalPolicy), new bytes32[](0)
+    );
     vm.warp(OFFSET_TIMESTAMP);
   }
 
@@ -72,10 +76,12 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorExtractsTimeBelowLowerBoundInterval_reverts() public {
     uint256 timestamp = generateTimestampForTargetHour(10);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(intervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -83,10 +89,12 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorExtractsTimeAboveUpperBoundInterval_reverts() public {
     uint256 timestamp = generateTimestampForTargetHour(18);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(intervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -94,10 +102,16 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorWithTwoPoliciesExtractsTimeWithinInterval_succeeds() public {
     vm.startPrank(deployer);
     IntervalPolicy dayIntervalPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(1, 6, 1 days, 7, 4);
+    bytes memory configParamBytes = abi.encode(
+      1, // start slot
+      6, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 days, cycleSize: 7, cycleOffset: 4})
+    );
     IntervalPolicy dayIntervalPolicy =
       IntervalPolicy(_deployPolicy(address(dayIntervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(dayIntervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(dayIntervalPolicy), new bytes32[](0)
+    );
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(2, 13);
     vm.warp(timestamp);
@@ -109,17 +123,25 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorWithTwoPoliciesHourBelowLowerBoundInterval_reverts() public {
     vm.startPrank(deployer);
     IntervalPolicy dayIntervalPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(1, 6, 1 days, 7, 4);
+    bytes memory configParamBytes = abi.encode(
+      1, // start slot
+      6, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 days, cycleSize: 7, cycleOffset: 4})
+    );
     IntervalPolicy dayIntervalPolicy =
       IntervalPolicy(_deployPolicy(address(dayIntervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(dayIntervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(dayIntervalPolicy), new bytes32[](0)
+    );
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(2, 10);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(intervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -127,17 +149,25 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorWithTwoPoliciesHourAboveUpperBoundInterval_reverts() public {
     vm.startPrank(deployer);
     IntervalPolicy dayIntervalPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(1, 6, 1 days, 7, 4);
+    bytes memory configParamBytes = abi.encode(
+      1, // start slot
+      6, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 days, cycleSize: 7, cycleOffset: 4})
+    );
     IntervalPolicy dayIntervalPolicy =
       IntervalPolicy(_deployPolicy(address(dayIntervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(dayIntervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(dayIntervalPolicy), new bytes32[](0)
+    );
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(2, 18);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(intervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(intervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -145,17 +175,25 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorWithTwoPoliciesDayBelowLowerBoundInterval_reverts() public {
     vm.startPrank(deployer);
     IntervalPolicy dayIntervalPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(1, 6, 1 days, 7, 4);
+    bytes memory configParamBytes = abi.encode(
+      1, // start slot
+      6, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 days, cycleSize: 7, cycleOffset: 4})
+    );
     IntervalPolicy dayIntervalPolicy =
       IntervalPolicy(_deployPolicy(address(dayIntervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(dayIntervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(dayIntervalPolicy), new bytes32[](0)
+    );
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(0, 14);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(dayIntervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(dayIntervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -163,17 +201,25 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_transfer_timeExtractorWithTwoPoliciesDayAboveUpperBoundInterval_reverts() public {
     vm.startPrank(deployer);
     IntervalPolicy dayIntervalPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(1, 6, 1 days, 7, 4);
+    bytes memory configParamBytes = abi.encode(
+      1, // start slot
+      6, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 days, cycleSize: 7, cycleOffset: 4})
+    );
     IntervalPolicy dayIntervalPolicy =
       IntervalPolicy(_deployPolicy(address(dayIntervalPolicyImpl), address(policyEngine), deployer, configParamBytes));
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(dayIntervalPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(dayIntervalPolicy), new bytes32[](0)
+    );
 
     uint256 timestamp = generateTimestampForTargetDayAndHour(6, 14);
     vm.warp(timestamp);
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(dayIntervalPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(dayIntervalPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
   }
@@ -191,9 +237,7 @@ contract IntervalPolicyTest is BaseProxyTest {
     bytes memory configParamBytes = abi.encode(
       5, // start slot
       15, // end slot
-      2 hours, // slot duration
-      24, // cycle size
-      2 // cycle offset
+      IntervalPolicy.CycleParameters({slotDuration: 2 hours, cycleSize: 24, cycleOffset: 2})
     );
 
     vm.expectEmit(true, true, true, true);
@@ -245,7 +289,11 @@ contract IntervalPolicyTest is BaseProxyTest {
     vm.startPrank(deployer);
 
     IntervalPolicy lastSlotPolicyImpl = new IntervalPolicy();
-    bytes memory configParamBytes = abi.encode(5, 12, 1 hours, 12, 0);
+    bytes memory configParamBytes = abi.encode(
+      5, // start slot
+      12, // end slot
+      IntervalPolicy.CycleParameters({slotDuration: 1 hours, cycleSize: 12, cycleOffset: 0})
+    );
 
     IntervalPolicy lastSlotPolicy =
       IntervalPolicy(_deployPolicy(address(lastSlotPolicyImpl), address(policyEngine), deployer, configParamBytes));
@@ -259,15 +307,13 @@ contract IntervalPolicyTest is BaseProxyTest {
   function test_firstSlotAndlastSlotExecution_succeds() public {
     vm.startPrank(deployer);
 
-    policyEngine.removePolicy(address(token), MockToken.transfer.selector, address(intervalPolicy));
+    policyEngine.removePolicy(address(token), MockTokenUpgradeable.transfer.selector, address(intervalPolicy));
 
     IntervalPolicy lastSlotPolicyImpl = new IntervalPolicy();
     bytes memory configParamBytes = abi.encode(
       5, // start slot
       12, // end slot (equal to cycle size - now allowed)
-      1 hours, // slot duration
-      12, // cycle size
-      0 // cycle offset
+      IntervalPolicy.CycleParameters({slotDuration: 1 hours, cycleSize: 12, cycleOffset: 0})
     );
 
     IntervalPolicy lastSlotPolicy =
@@ -278,7 +324,9 @@ contract IntervalPolicyTest is BaseProxyTest {
     (, uint256 cycleSize,) = lastSlotPolicy.getCycleParameters();
     assertEq(cycleSize, 12);
 
-    policyEngine.addPolicy(address(token), MockToken.transfer.selector, address(lastSlotPolicy), new bytes32[](0));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.transfer.selector, address(lastSlotPolicy), new bytes32[](0)
+    );
 
     uint256 baseTimestamp = (12 * 3600);
 
@@ -291,10 +339,12 @@ contract IntervalPolicyTest is BaseProxyTest {
     uint256 slot4Timestamp = baseTimestamp + (4 * 3600);
     vm.warp(slot4Timestamp);
 
-    vm.expectRevert(
-      _encodeRejectedRevert(
-        MockToken.transfer.selector, address(lastSlotPolicy), "execution outside allowed time interval"
-      )
+    _expectRejectedRevert(
+      address(lastSlotPolicy),
+      "execution outside allowed time interval",
+      MockTokenUpgradeable.transfer.selector,
+      deployer,
+      abi.encode(recipient, 25)
     );
     token.transfer(recipient, 25);
 

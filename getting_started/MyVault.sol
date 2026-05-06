@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
 
 /**
  * @title MyVault
@@ -10,7 +10,7 @@ import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected
  * Both the `deposit` and `withdraw` functions are protected with the `runPolicy` modifier.
  * This contract is designed to be deployed behind a proxy for upgradeability.
  */
-contract MyVault is PolicyProtected {
+contract MyVault is PolicyProtectedUpgradeable {
   mapping(address => uint256) public deposits;
 
   function initialize(address initialOwner, address policyEngine) public initializer {
