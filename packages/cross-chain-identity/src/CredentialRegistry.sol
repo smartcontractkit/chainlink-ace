@@ -82,7 +82,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     if (expiresAt > 0 && expiresAt <= block.timestamp) {
       revert InvalidCredentialConfiguration("Invalid expiration time");
     }
-    for (uint256 i = 0; i < credentialTypeIds.length; i++) {
+    for (uint256 i; i < credentialTypeIds.length; ++i) {
       _registerCredential(ccid, credentialTypeIds[i], expiresAt, credentialDatas[i]);
     }
   }
@@ -99,7 +99,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     runPolicyWithContext(context)
   {
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
         _credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] =
           _credentialRegistryStorage().credentialTypeIdsByCCID[ccid][length - 1];
@@ -129,7 +129,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
       revert InvalidCredentialConfiguration("Invalid expiration time");
     }
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
         uint40 currentExpiresAt = _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt;
 
@@ -153,7 +153,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
 
   /// @inheritdoc ICredentialRegistry
   function getCredential(bytes32 ccid, bytes32 credentialTypeId) public view returns (Credential memory) {
-    for (uint256 i = 0; i < _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length; i++) {
+    for (uint256 i; i < _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length; ++i) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
         return _credentialRegistryStorage().credentials[ccid][credentialTypeId];
       }
@@ -172,7 +172,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
   {
     uint256 length = credentialTypeIds.length;
     Credential[] memory credentials = new Credential[](length);
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       credentials[i] = getCredential(ccid, credentialTypeIds[i]);
     }
     return credentials;
@@ -205,7 +205,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     override
     returns (bool)
   {
-    for (uint256 i = 0; i < credentialTypeIds.length; i++) {
+    for (uint256 i; i < credentialTypeIds.length; ++i) {
       if (!_validate(ccid, credentialTypeIds[i], context)) {
         return false;
       }
@@ -215,7 +215,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
 
   function _validate(bytes32 ccid, bytes32 credentialTypeId, bytes calldata /*context*/ ) internal view returns (bool) {
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
         return (
           _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt == 0
@@ -235,7 +235,7 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     internal
   {
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
         revert CredentialAlreadyRegistered(ccid, credentialTypeId);
       }

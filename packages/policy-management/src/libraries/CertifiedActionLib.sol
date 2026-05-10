@@ -39,7 +39,7 @@ library CertifiedActionLib {
     // keccak256( keccak256(encodeData(value[0])) ‖ keccak256(encodeData(value[1])) ‖ … ‖
     //            keccak256(encodeData(value[n])) )
     bytes32[] memory hashes = new bytes32[](parameters.length);
-    for (uint256 i = 0; i < parameters.length; i++) {
+    for (uint256 i; i < parameters.length; ++i) {
       hashes[i] = keccak256(parameters[i]);
     }
     return keccak256(abi.encodePacked(hashes));

@@ -96,7 +96,7 @@ contract RejectPolicy is Policy {
     }
     // Gas optimization: load storage reference once
     RejectPolicyStorage storage $ = _getRejectPolicyStorage();
-    for (uint256 i = 0; i < parameters.length; i++) {
+    for (uint256 i; i < parameters.length; ++i) {
       address account = abi.decode(parameters[i], (address));
       if ($.rejectList[account]) {
         revert IPolicyEngine.PolicyRejected("address is on reject list");

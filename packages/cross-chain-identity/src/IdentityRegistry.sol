@@ -73,7 +73,7 @@ contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
     if (ccids.length == 0 || ccids.length != accounts.length) {
       revert InvalidIdentityConfiguration("Invalid input length");
     }
-    for (uint256 i = 0; i < ccids.length; i++) {
+    for (uint256 i; i < ccids.length; ++i) {
       _registerIdentity(ccids[i], accounts[i], context);
     }
   }

@@ -97,7 +97,7 @@ contract BypassPolicy is Policy {
     }
     // Gas optimization: load storage reference once
     BypassPolicyStorage storage $ = _getBypassPolicyStorage();
-    for (uint256 i = 0; i < parameters.length; i++) {
+    for (uint256 i; i < parameters.length; ++i) {
       address account = abi.decode(parameters[i], (address));
       if (!$.allowList[account]) {
         return IPolicyEngine.PolicyResult.Continue;

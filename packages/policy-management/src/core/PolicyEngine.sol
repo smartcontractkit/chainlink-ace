@@ -129,7 +129,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     }
 
     IPolicyEngine.Parameter[] memory extractedParameters = _extractParameters(payload);
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i; i < policies.length; ++i) {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
@@ -161,7 +161,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
       return;
     }
 
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i; i < policies.length; ++i) {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
@@ -198,7 +198,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
 
   /// @inheritdoc IPolicyEngine
   function setExtractors(bytes4[] calldata selectors, address extractor) public virtual override onlyRole(ADMIN_ROLE) {
-    for (uint256 i = 0; i < selectors.length; i++) {
+    for (uint256 i; i < selectors.length; ++i) {
       _setExtractor(selectors[i], extractor);
     }
   }
@@ -266,7 +266,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
   function removePolicy(address target, bytes4 selector, address policy) public virtual override onlyRole(ADMIN_ROLE) {
     address[] storage policies = _policyEngineStorage().targetPolicies[target][selector];
     address removedPolicy = address(0);
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i; i < policies.length; ++i) {
       if (policies[i] == policy) {
         removedPolicy = policies[i];
         for (uint256 j = i; j < policies.length - 1; j++) {
@@ -352,7 +352,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
       revert Policy.InvalidParameters("Maximum policies reached");
     }
     address[] memory policies = _policyEngineStorage().targetPolicies[target][selector];
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i; i < policies.length; ++i) {
       if (policies[i] == policy) {
         revert Policy.InvalidParameters("Policy already added");
       }
@@ -408,8 +408,8 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     }
 
     uint256 mappedParameterCount = 0;
-    for (uint256 i = 0; i < extractedParameters.length; i++) {
-      for (uint256 j = 0; j < parameterCount; j++) {
+    for (uint256 i; i < extractedParameters.length; ++i) {
+      for (uint256 j; j < parameterCount; ++j) {
         if (extractedParameters[i].name == policyParameterNames[j]) {
           policyParameterValues[j] = extractedParameters[i].value;
           mappedParameterCount++;
@@ -430,7 +430,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     }
     bytes4 selector = bytes4(err);
     bytes memory errorData = new bytes(err.length - 4);
-    for (uint256 i = 0; i < err.length - 4; i++) {
+    for (uint256 i; i < err.length - 4; ++i) {
       errorData[i] = err[i + 4];
     }
     return (selector, errorData);
