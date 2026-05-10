@@ -78,7 +78,7 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
   function grantOperationAllowanceToRole(bytes4 operation, bytes32 role) public onlyOwner {
     RoleBasedAccessControlPolicyStorage storage $ = _getRoleBasedAccessControlPolicyStorage();
     uint256 length = $.rolesByOperation[operation].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if ($.rolesByOperation[operation][i] == role) {
         revert("Role already has operation allowance");
       }
@@ -96,7 +96,7 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
   function removeOperationAllowanceFromRole(bytes4 operation, bytes32 role) public onlyOwner {
     RoleBasedAccessControlPolicyStorage storage $ = _getRoleBasedAccessControlPolicyStorage();
     uint256 length = $.rolesByOperation[operation].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if ($.rolesByOperation[operation][i] == role) {
         $.rolesByOperation[operation][i] = $.rolesByOperation[operation][length - 1];
         $.rolesByOperation[operation].pop();
@@ -118,7 +118,7 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
     RoleBasedAccessControlPolicyStorage storage $ = _getRoleBasedAccessControlPolicyStorage();
     bytes32[] memory roles = $.rolesByOperation[operation];
     uint256 length = roles.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (hasRole(roles[i], account)) {
         return true;
       }

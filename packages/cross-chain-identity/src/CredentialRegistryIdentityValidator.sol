@@ -77,11 +77,11 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     onlyInitializing
   {
     uint256 length = credentialSourceInputs.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       _addCredentialSource(credentialSourceInputs[i]);
     }
     length = credentialRequirementInputs.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       _addCredentialRequirement(credentialRequirementInputs[i]);
     }
   }
@@ -96,7 +96,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
       revert InvalidRequirementConfiguration("Max requirements reached");
     }
     bytes32 requirementId = input.requirementId;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryIdentityValidatorStorage().requirements[i] == requirementId) {
         revert RequirementExists(requirementId);
       }
@@ -121,7 +121,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   /// @inheritdoc ICredentialRequirements
   function removeCredentialRequirement(bytes32 requirementId) public virtual override onlyOwner {
     uint256 length = _credentialRegistryIdentityValidatorStorage().requirements.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (_credentialRegistryIdentityValidatorStorage().requirements[i] == requirementId) {
         _credentialRegistryIdentityValidatorStorage().requirements[i] =
           _credentialRegistryIdentityValidatorStorage().requirements[length - 1];
@@ -165,7 +165,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     if (length >= MAX_REQUIREMENT_SOURCES) {
       revert InvalidRequirementConfiguration("Max credential sources reached for credential type");
     }
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       // Load the entire source struct into memory once
       CredentialSource memory existingSource =
         _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId][i];
@@ -201,7 +201,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   {
     bytes32 sourceId = keccak256(abi.encodePacked(identityRegistry, credentialRegistry));
     uint256 length = _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       // Load the entire source struct into memory once
       CredentialSource memory existingSource =
         _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId][i];
@@ -229,7 +229,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   /// @inheritdoc IIdentityValidator
   function validate(address account, bytes calldata context) public view virtual override returns (bool) {
     uint256 length = _credentialRegistryIdentityValidatorStorage().requirements.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if (!_validateRequirement(account, _credentialRegistryIdentityValidatorStorage().requirements[i], context)) {
         return false;
       }
@@ -250,7 +250,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     CredentialRequirement memory requirement =
       _credentialRegistryIdentityValidatorStorage().credentialRequirementMap[requirementId];
     uint256 validations = 0;
-    for (uint256 i = 0; i < requirement.credentialTypeIds.length; i++) {
+    for (uint256 i; i < requirement.credentialTypeIds.length; ++i) {
       validations = _validateCredential(
         account, requirement.credentialTypeIds[i], validations, requirement.minValidations, requirement.invert, context
       );
@@ -276,7 +276,7 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   {
     uint256 validations = currentValidations;
     uint256 length = _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId].length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       CredentialSource memory source =
         _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId][i];
       bytes32 ccid = IIdentityRegistry(source.identityRegistry).getIdentity(account);

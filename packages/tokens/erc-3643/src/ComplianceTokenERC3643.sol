@@ -174,7 +174,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchTransfer(address[] calldata _toList, uint256[] calldata _amounts) external override {
     if (_toList.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _toList.length; i++) {
+    for (uint256 i; i < _toList.length; ++i) {
       transfer(_toList[i], _amounts[i]);
     }
   }
@@ -222,7 +222,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
     override
   {
     if (_fromList.length != _toList.length || _toList.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _fromList.length; i++) {
+    for (uint256 i; i < _fromList.length; ++i) {
       forcedTransfer(_fromList[i], _toList[i], _amounts[i]);
     }
   }
@@ -232,7 +232,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchMint(address[] calldata _toList, uint256[] calldata _amounts) external override {
     if (_toList.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _toList.length; i++) {
+    for (uint256 i; i < _toList.length; ++i) {
       mint(_toList[i], _amounts[i]);
     }
   }
@@ -242,7 +242,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchBurn(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _userAddresses.length; i++) {
+    for (uint256 i; i < _userAddresses.length; ++i) {
       burn(_userAddresses[i], _amounts[i]);
     }
   }
@@ -252,7 +252,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchSetAddressFrozen(address[] calldata _userAddresses, bool[] calldata _freeze) external override {
     if (_userAddresses.length != _freeze.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _userAddresses.length; i++) {
+    for (uint256 i; i < _userAddresses.length; ++i) {
       setAddressFrozen(_userAddresses[i], _freeze[i]);
     }
   }
@@ -262,7 +262,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchFreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _userAddresses.length; i++) {
+    for (uint256 i; i < _userAddresses.length; ++i) {
       freezePartialTokens(_userAddresses[i], _amounts[i]);
     }
   }
@@ -272,7 +272,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    */
   function batchUnfreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
-    for (uint256 i = 0; i < _userAddresses.length; i++) {
+    for (uint256 i; i < _userAddresses.length; ++i) {
       unfreezePartialTokens(_userAddresses[i], _amounts[i]);
     }
   }

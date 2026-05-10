@@ -112,7 +112,7 @@ contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegi
     $.trustedIssuers[issuerIdHash] = false;
 
     uint256 length = $.issuerList.length;
-    for (uint256 i = 0; i < length; i++) {
+    for (uint256 i; i < length; ++i) {
       if ($.issuerList[i] == issuerIdHash) {
         $.issuerList[i] = $.issuerList[length - 1];
         $.issuerList.pop();

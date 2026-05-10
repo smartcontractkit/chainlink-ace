@@ -59,7 +59,7 @@ contract CredentialRegistryIdentityValidatorPolicy is Policy, CredentialRegistry
       revert InvalidParameters("expected at least 1 parameter");
     }
 
-    for (uint256 i = 0; i < parameters.length; i++) {
+    for (uint256 i; i < parameters.length; ++i) {
       address account = abi.decode(parameters[i], (address));
       if (!validate(account, context)) {
         revert IPolicyEngine.PolicyRejected("account identity validation failed");
