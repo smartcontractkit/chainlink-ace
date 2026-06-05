@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {PausePolicy} from "@chainlink/policy-management/policies/PausePolicy.sol";
+import {IPolicyEngine, PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {PausePolicy} from "../../src/policies/PausePolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 

@@ -2,9 +2,8 @@
 pragma solidity ^0.8.20;
 
 import {IIdentityRegistry} from "../src/interfaces/IIdentityRegistry.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
+import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract IdentityRegistryTest is BaseProxyTest {

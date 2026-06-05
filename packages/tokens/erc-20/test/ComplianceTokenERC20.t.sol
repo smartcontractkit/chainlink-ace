@@ -1,36 +1,41 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
+import {IPolicyEngine} from "../../../policy-management/src/interfaces/IPolicyEngine.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ComplianceTokenERC20} from "../src/ComplianceTokenERC20.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {IPolicy} from "@chainlink/policy-management/interfaces/IPolicy.sol";
-import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
-import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
-import {VolumePolicy} from "@chainlink/policy-management/policies/VolumePolicy.sol";
+import {PolicyEngine} from "../../../policy-management/src/core/PolicyEngine.sol";
+import {IPolicy} from "../../../policy-management/src/interfaces/IPolicy.sol";
+import {OnlySubjectOwnerPolicy} from "../../../policy-management/src/policies/OnlySubjectOwnerPolicy.sol";
+import {OnlyAuthorizedSenderPolicy} from "../../../policy-management/src/policies/OnlyAuthorizedSenderPolicy.sol";
+import {VolumePolicy} from "../../../policy-management/src/policies/VolumePolicy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
-import {ComplianceTokenMintBurnExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
-import {ComplianceTokenFreezeUnfreezeExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
-import {ComplianceTokenForceTransferExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+import {
+  ComplianceTokenMintBurnExtractor
+} from "../../../policy-management/src/extractors/ComplianceTokenMintBurnExtractor.sol";
+import {
+  ComplianceTokenFreezeUnfreezeExtractor
+} from "../../../policy-management/src/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
+import {
+  ComplianceTokenForceTransferExtractor
+} from "../../../policy-management/src/extractors/ComplianceTokenForceTransferExtractor.sol";
+import {ERC20TransferExtractor} from "../../../policy-management/src/extractors/ERC20TransferExtractor.sol";
 
 contract ComplianceTokenERC20Test is BaseProxyTest {
   PolicyEngine internal s_policyEngine;
   ComplianceTokenERC20 internal s_token;
   address internal s_owner;
+  address internal s_token_owner;
   address internal s_bridge;
   address internal s_enforcer;
-  OnlyOwnerPolicy internal onlyOwnerPolicy;
+  OnlySubjectOwnerPolicy internal onlySubjectOwnerPolicy;
   OnlyAuthorizedSenderPolicy internal minterBurnerList;
   OnlyAuthorizedSenderPolicy internal freezingList;
   VolumePolicy internal volumePolicy;
 
   function setUp() public {
     s_owner = makeAddr("owner");
+    s_token_owner = makeAddr("token_owner");
     s_bridge = makeAddr("bridge");
     s_enforcer = makeAddr("enforcer");
 
@@ -53,9 +58,10 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     );
 
     // to protect admin methods
-    OnlyOwnerPolicy onlyOwnerPolicyImpl = new OnlyOwnerPolicy();
-    onlyOwnerPolicy =
-      OnlyOwnerPolicy(_deployPolicy(address(onlyOwnerPolicyImpl), address(s_policyEngine), s_owner, new bytes(0)));
+    OnlySubjectOwnerPolicy onlySubjectOwnerPolicyImpl = new OnlySubjectOwnerPolicy();
+    onlySubjectOwnerPolicy = OnlySubjectOwnerPolicy(
+      _deployPolicy(address(onlySubjectOwnerPolicyImpl), address(s_policyEngine), address(s_policyEngine), new bytes(0))
+    );
     // to protect mint/burn with admin list
     OnlyAuthorizedSenderPolicy minterBurnerListImpl = new OnlyAuthorizedSenderPolicy();
     minterBurnerList = OnlyAuthorizedSenderPolicy(
@@ -80,17 +86,20 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     );
     // to enforce transaction limits
     VolumePolicy volumePolicyImpl = new VolumePolicy();
-    volumePolicy =
-      VolumePolicy(_deployPolicy(address(volumePolicyImpl), address(s_policyEngine), s_owner, abi.encode(100, 200)));
+    volumePolicy = VolumePolicy(
+      _deployPolicy(address(volumePolicyImpl), address(s_policyEngine), address(s_policyEngine), abi.encode(100, 200))
+    );
 
+    // make token owner distinct from ACE contracts owner
     s_token = _deployComplianceTokenERC20("Test Token", "TST", 18, address(s_policyEngine));
+    s_token.transferOwnership(s_token_owner);
 
     bytes32[] memory volumeParams = new bytes32[](1);
     volumeParams[0] = mintBurnExtractor.PARAM_AMOUNT();
 
-    // admin methods - onlyOwner
+    // admin methods - onlySubjectOwner
     s_policyEngine.addPolicy(
-      address(s_token), ComplianceTokenERC20.forceTransfer.selector, address(onlyOwnerPolicy), new bytes32[](0)
+      address(s_token), ComplianceTokenERC20.forceTransfer.selector, address(onlySubjectOwnerPolicy), new bytes32[](0)
     );
     // mint - onlyAuthorized - volume
     s_policyEngine.addPolicy(
@@ -128,7 +137,6 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
   function test_mint_bridge_success() public {
     address alice = makeAddr("alice");
 
-    vm.stopPrank();
     vm.startPrank(s_bridge);
     s_token.mint(alice, 120);
 
@@ -165,7 +173,6 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
   function test_mint_notAuthorized_revert() public {
     address alice = makeAddr("alice");
 
-    vm.stopPrank();
     vm.startPrank(alice);
 
     _expectRejectedRevert(
@@ -181,9 +188,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
   function test_burn_success() public {
     s_token.mint(s_bridge, 110);
 
-    vm.stopPrank();
     vm.startPrank(s_bridge);
-
     s_token.burn(5);
 
     assertEq(s_token.balanceOf(s_bridge), 105);
@@ -193,9 +198,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
   function test_burn_overBalance_revert() public {
     s_token.mint(s_bridge, 110);
 
-    vm.stopPrank();
     vm.startPrank(s_bridge);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.burn(111);
   }
@@ -205,9 +208,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 110);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     _expectRejectedRevert(
       address(minterBurnerList), "sender is not authorized", ComplianceTokenERC20.burn.selector, alice, abi.encode(111)
     );
@@ -219,9 +220,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.freeze(s_bridge, 60, "");
 
-    vm.stopPrank();
     vm.startPrank(s_bridge);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.burn(55);
   }
@@ -242,9 +241,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 120);
     assertEq(s_token.balanceOf(alice), 120);
 
-    vm.stopPrank();
     vm.startPrank(s_bridge);
-
     s_token.burnFrom(alice, 70);
 
     assertEq(s_token.balanceOf(alice), 50);
@@ -256,9 +253,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 120);
     assertEq(s_token.balanceOf(alice), 120);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     _expectRejectedRevert(
       address(minterBurnerList),
       "sender is not authorized",
@@ -275,9 +270,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 170);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.transfer(bob, 110);
 
     assertEq(s_token.balanceOf(alice), 60);
@@ -292,9 +285,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 120);
     assertEq(s_token.balanceOf(alice), 240);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     _expectRejectedRevert(
       address(volumePolicy),
       "amount outside allowed volume limits",
@@ -311,9 +302,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 120);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     _expectRejectedRevert(
       address(volumePolicy),
       "amount outside allowed volume limits",
@@ -331,14 +320,10 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 170);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.approve(charlie, 110);
 
-    vm.stopPrank();
     vm.startPrank(charlie);
-
     s_token.transferFrom(alice, bob, 110);
 
     assertEq(s_token.balanceOf(alice), 60);
@@ -352,14 +337,10 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 170);
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.approve(charlie, 110);
 
-    vm.stopPrank();
     vm.startPrank(charlie);
-
     vm.expectRevert("ERC20: transfer amount exceeds allowance");
     s_token.transferFrom(alice, bob, 111);
   }
@@ -373,14 +354,10 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.freeze(alice, 110, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.approve(charlie, 101);
 
-    vm.stopPrank();
     vm.startPrank(charlie);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.transferFrom(alice, bob, 101);
   }
@@ -392,9 +369,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 170);
     s_token.freeze(alice, 110, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.transfer(bob, 120);
   }
@@ -406,9 +381,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 170);
     s_token.freeze(alice, 50, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.transfer(bob, 110);
 
     assertEq(s_token.balanceOf(alice), 60);
@@ -438,20 +411,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 110);
     s_token.freeze(alice, 5, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.transfer(bob, 107);
 
-    vm.stopPrank();
     vm.startPrank(s_owner);
-
     s_token.unfreeze(alice, 3, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.transfer(bob, 107);
 
     assertEq(s_token.balanceOf(alice), 3);
@@ -467,20 +434,14 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     vm.startPrank(s_enforcer);
     s_token.freeze(alice, 100, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     vm.expectRevert("amount exceeds available balance");
     s_token.transfer(bob, 110);
 
-    vm.stopPrank();
     vm.startPrank(s_enforcer);
-
     s_token.unfreeze(alice, 100, "");
 
-    vm.stopPrank();
     vm.startPrank(alice);
-
     s_token.transfer(bob, 110);
     assertEq(s_token.balanceOf(alice), 10);
     assertEq(s_token.balanceOf(bob), 110);
@@ -509,6 +470,7 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 170);
 
+    vm.startPrank(s_token_owner);
     s_token.forceTransfer(alice, bob, 60, "");
 
     assertEq(s_token.balanceOf(alice), 110);
@@ -522,6 +484,8 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
     s_token.mint(alice, 170);
     s_token.freeze(alice, 60, "");
     vm.expectRevert("amount exceeds available balance");
+
+    vm.startPrank(s_token_owner);
     s_token.forceTransfer(alice, bob, 140, "");
 
     assertEq(s_token.balanceOf(alice), 170);
@@ -535,6 +499,8 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 170);
     s_token.freeze(alice, 60, "");
+
+    vm.startPrank(s_token_owner);
     s_token.forceTransfer(alice, bob, 110, "");
     assertEq(s_token.balanceOf(alice), 60);
     assertEq(s_token.frozenBalanceOf(alice), 60);
@@ -551,14 +517,28 @@ contract ComplianceTokenERC20Test is BaseProxyTest {
 
     s_token.mint(alice, 110);
 
-    vm.stopPrank();
     vm.startPrank(bob);
-
     _expectRejectedRevert(
-      address(onlyOwnerPolicy),
-      "caller is not the policy owner",
+      address(onlySubjectOwnerPolicy),
+      "caller is not the subject owner",
       ComplianceTokenERC20.forceTransfer.selector,
       bob,
+      abi.encode(alice, bob, 60, "")
+    );
+    s_token.forceTransfer(alice, bob, 60, "");
+  }
+
+  function test_forceTransfer_engineOwner_revert() public {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+
+    s_token.mint(alice, 110);
+
+    _expectRejectedRevert(
+      address(onlySubjectOwnerPolicy),
+      "caller is not the subject owner",
+      ComplianceTokenERC20.forceTransfer.selector,
+      s_owner,
       abi.encode(alice, bob, 60, "")
     );
     s_token.forceTransfer(alice, bob, 60, "");

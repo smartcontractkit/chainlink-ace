@@ -11,12 +11,21 @@ importers:
       '@chainlink/contracts':
         specifier: 1.5.0
         version: 1.5.0(ethers@5.8.0)
+      '@chainlink/contracts-ccip':
+        specifier: https://github.com/smartcontractkit/chainlink-ccip#4cf4545dc916969ec863da135b534cad4989819b
+        version: chainlink-ccip#4cf4545dc916969ec863da135b534cad4989819b@https://codeload.github.com/smartcontractkit/chainlink-ccip/tar.gz/4cf4545dc916969ec863da135b534cad4989819b
       '@openzeppelin/contracts':
-        specifier: ^5.0.2
-        version: 5.0.2
+        specifier: 5.4.0
+        version: 5.4.0
+      '@openzeppelin/contracts-4.8.3':
+        specifier: npm:@openzeppelin/contracts@4.8.3
+        version: '@openzeppelin/contracts@4.8.3'
+      '@openzeppelin/contracts-5.3.0':
+        specifier: npm:@openzeppelin/contracts@5.3.0
+        version: '@openzeppelin/contracts@5.3.0'
       '@openzeppelin/contracts-upgradeable':
-        specifier: ^5.0.2
-        version: 5.0.2(@openzeppelin/contracts@5.0.2)
+        specifier: 5.4.0
+        version: 5.4.0(@openzeppelin/contracts@5.4.0)
       forge-std:
         specifier: github:foundry-rs/forge-std#v1.9.4
         version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/1eea5bae12ae557d589f9f0f0edae2faa47cb262
@@ -245,10 +254,10 @@ packages:
   '@openzeppelin/contracts-upgradeable@4.9.6':
     resolution: {integrity: sha512-m4iHazOsOCv1DgM7eD7GupTJ+NFVujRZt1wzddDPSVGpWdKq1SKkla5htKG7+IS4d2XOCtzkUNwRZ7Vq5aEUMA==}
 
-  '@openzeppelin/contracts-upgradeable@5.0.2':
-    resolution: {integrity: sha512-0MmkHSHiW2NRFiT9/r5Lu4eJq5UJ4/tzlOgYXNAIj/ONkQTVnz22pLxDvp4C4uZ9he7ZFvGn3Driptn1/iU7tQ==}
+  '@openzeppelin/contracts-upgradeable@5.4.0':
+    resolution: {integrity: sha512-STJKyDzUcYuB35Zub1JpWW58JxvrFFVgQ+Ykdr8A9PGXgtq/obF5uoh07k2XmFyPxfnZdPdBdhkJ/n2YxJ87HQ==}
     peerDependencies:
-      '@openzeppelin/contracts': 5.0.2
+      '@openzeppelin/contracts': 5.4.0
 
   '@openzeppelin/contracts@4.7.3':
     resolution: {integrity: sha512-dGRS0agJzu8ybo44pCIf3xBaPQN/65AIXNgK8+4gzKd5kbvlqyxryUYVLJv7fK98Seyd2hDZzVEHSWAh0Bt1Yw==}
@@ -264,6 +273,12 @@ packages:
 
   '@openzeppelin/contracts@5.1.0':
     resolution: {integrity: sha512-p1ULhl7BXzjjbha5aqst+QMLY+4/LCWADXOCsmLHRM77AqiPjnd9vvUN9sosUfhL9JGKpZ0TjEGxgvnizmWGSA==}
+
+  '@openzeppelin/contracts@5.3.0':
+    resolution: {integrity: sha512-zj/KGoW7zxWUE8qOI++rUM18v+VeLTTzKs/DJFkSzHpQFPD/jKKF0TrMxBfGLl3kpdELCNccvB3zmofSzm4nlA==}
+
+  '@openzeppelin/contracts@5.4.0':
+    resolution: {integrity: sha512-eCYgWnLg6WO+X52I16TZt8uEjbtdkgLC0SUX/xnAksjjrQI4Xfn4iBRoI5j55dmlOhDv1Y7BoR3cU7e3WWhC6A==}
 
   '@pnpm/config.env-replace@1.1.0':
     resolution: {integrity: sha512-htyl8TWnKL7K/ESFa1oW2UB5lVDxuF5DpM7tBi6Hu2LNL3mWkIzNLG6N4zoCUP1lCKNxWy/3iu8mS8MvToGd6w==}
@@ -411,6 +426,10 @@ packages:
   chai@4.5.0:
     resolution: {integrity: sha512-RITGBfijLkBddZvnn8jdqoTypxvqbOLYQkGGxXzeFjVHvudaPw0HNFD9x928/eUwYWd2dPCugVqspGALTZZQKw==}
     engines: {node: '>=4'}
+
+  chainlink-ccip#4cf4545dc916969ec863da135b534cad4989819b@https://codeload.github.com/smartcontractkit/chainlink-ccip/tar.gz/4cf4545dc916969ec863da135b534cad4989819b:
+    resolution: {tarball: https://codeload.github.com/smartcontractkit/chainlink-ccip/tar.gz/4cf4545dc916969ec863da135b534cad4989819b}
+    version: 0.0.0
 
   chalk@2.4.2:
     resolution: {integrity: sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ==}
@@ -1727,9 +1746,9 @@ snapshots:
 
   '@openzeppelin/contracts-upgradeable@4.9.6': {}
 
-  '@openzeppelin/contracts-upgradeable@5.0.2(@openzeppelin/contracts@5.0.2)':
+  '@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0)':
     dependencies:
-      '@openzeppelin/contracts': 5.0.2
+      '@openzeppelin/contracts': 5.4.0
 
   '@openzeppelin/contracts@4.7.3': {}
 
@@ -1740,6 +1759,10 @@ snapshots:
   '@openzeppelin/contracts@5.0.2': {}
 
   '@openzeppelin/contracts@5.1.0': {}
+
+  '@openzeppelin/contracts@5.3.0': {}
+
+  '@openzeppelin/contracts@5.4.0': {}
 
   '@pnpm/config.env-replace@1.1.0': {}
 
@@ -1873,6 +1896,8 @@ snapshots:
       loupe: 2.3.7
       pathval: 1.1.1
       type-detect: 4.1.0
+
+  chainlink-ccip#4cf4545dc916969ec863da135b534cad4989819b@https://codeload.github.com/smartcontractkit/chainlink-ccip/tar.gz/4cf4545dc916969ec863da135b534cad4989819b: {}
 
   chalk@2.4.2:
     dependencies:

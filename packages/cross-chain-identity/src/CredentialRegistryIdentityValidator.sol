@@ -37,8 +37,9 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
-    // disabling initializers on the implementation contract itself
     _disableInitializers();
   }
 
@@ -87,8 +88,13 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   }
 
   function _addCredentialRequirement(CredentialRequirementInput memory input) internal {
-    uint256 minValidations = input.minValidations;
-    if (minValidations == 0) {
+    if (input.requirementId == 0) {
+      revert InvalidRequirementConfiguration("requirementId cannot be 0");
+    }
+    if (input.credentialTypeIds.length == 0 || input.credentialTypeIds.length > MAX_CREDENTIAL_TYPES_PER_REQUIREMENT) {
+      revert InvalidRequirementConfiguration("Invalid credential types length");
+    }
+    if (input.minValidations == 0) {
       revert InvalidRequirementConfiguration("minValidations must be greater than 0");
     }
     uint256 length = _credentialRegistryIdentityValidatorStorage().requirements.length;
@@ -101,16 +107,12 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
         revert RequirementExists(requirementId);
       }
     }
-    bytes32[] memory credentialTypeIds = input.credentialTypeIds;
-    uint256 credentialTypesLength = credentialTypeIds.length;
 
-    if (credentialTypesLength == 0 || credentialTypesLength > MAX_CREDENTIAL_TYPES_PER_REQUIREMENT) {
-      revert InvalidRequirementConfiguration("Invalid credential types length");
-    }
     _credentialRegistryIdentityValidatorStorage().requirements.push(requirementId);
-    _credentialRegistryIdentityValidatorStorage().credentialRequirementMap[requirementId] =
-      CredentialRequirement(credentialTypeIds, minValidations, input.invert);
-    emit CredentialRequirementAdded(requirementId, credentialTypeIds, minValidations, input.invert);
+    _credentialRegistryIdentityValidatorStorage().credentialRequirementMap[requirementId] = CredentialRequirement({
+      credentialTypeIds: input.credentialTypeIds, minValidations: input.minValidations, invert: input.invert
+    });
+    emit CredentialRequirementAdded(requirementId, input.credentialTypeIds, input.minValidations, input.invert);
   }
 
   /// @inheritdoc ICredentialRequirements
@@ -157,30 +159,45 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
   }
 
   function _addCredentialSource(CredentialSourceInput memory input) internal {
-    address identityRegistry = input.identityRegistry;
-    address credentialRegistry = input.credentialRegistry;
-    bytes32 credentialTypeId = input.credentialTypeId;
-    bytes32 sourceId = keccak256(abi.encodePacked(identityRegistry, credentialRegistry));
-    uint256 length = _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId].length;
+    if (input.identityRegistry == address(0)) {
+      revert InvalidRequirementConfiguration("identityRegistry cannot be address(0)");
+    }
+    if (input.credentialRegistry == address(0)) {
+      revert InvalidRequirementConfiguration("credentialRegistry cannot be address(0)");
+    }
+    if (input.credentialTypeId == 0) {
+      revert InvalidRequirementConfiguration("credentialTypeId cannot be 0");
+    }
+    if (input.dataValidator != address(0) && input.dataValidator.code.length == 0) {
+      revert InvalidRequirementConfiguration("dataValidator is not a contract");
+    }
+    uint256 length = _credentialRegistryIdentityValidatorStorage().credentialSources[input.credentialTypeId].length;
     if (length >= MAX_REQUIREMENT_SOURCES) {
       revert InvalidRequirementConfiguration("Max credential sources reached for credential type");
     }
+    bytes32 sourceId = keccak256(abi.encodePacked(input.identityRegistry, input.credentialRegistry));
     for (uint256 i = 0; i < length; i++) {
       // Load the entire source struct into memory once
       CredentialSource memory existingSource =
-        _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId][i];
+        _credentialRegistryIdentityValidatorStorage().credentialSources[input.credentialTypeId][i];
 
       bytes32 foundSourceId =
         keccak256(abi.encodePacked(existingSource.identityRegistry, existingSource.credentialRegistry));
       if (foundSourceId == sourceId) {
-        revert SourceExists(credentialTypeId, identityRegistry, credentialRegistry);
+        revert SourceExists(input.credentialTypeId, input.identityRegistry, input.credentialRegistry);
       }
     }
-    address dataValidator = input.dataValidator;
-    _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId].push(
-      CredentialSource(identityRegistry, credentialRegistry, dataValidator)
+    _credentialRegistryIdentityValidatorStorage()
+    .credentialSources[input.credentialTypeId].push(
+      CredentialSource({
+        identityRegistry: input.identityRegistry,
+        credentialRegistry: input.credentialRegistry,
+        dataValidator: input.dataValidator
+      })
     );
-    emit CredentialSourceAdded(credentialTypeId, identityRegistry, credentialRegistry, dataValidator);
+    emit CredentialSourceAdded(
+      input.credentialTypeId, input.identityRegistry, input.credentialRegistry, input.dataValidator
+    );
   }
 
   /// @inheritdoc ICredentialRequirements
@@ -279,21 +296,23 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     for (uint256 i = 0; i < length; i++) {
       CredentialSource memory source =
         _credentialRegistryIdentityValidatorStorage().credentialSources[credentialTypeId][i];
-      bytes32 ccid = IIdentityRegistry(source.identityRegistry).getIdentity(account);
-      if (ccid == 0) {
-        continue; // identity not found in this registry
-      }
-
-      if (
-        _validateCredentialWithRegistry(
-          ccid, account, source.credentialRegistry, source.dataValidator, credentialTypeId, invert, context
-        )
-      ) {
-        validations++;
-      }
-      if (validations >= minValidations) {
-        return validations;
-      }
+      try IIdentityRegistry(source.identityRegistry).getIdentity(account) returns (bytes32 ccid) {
+        if (ccid == 0) {
+          if (invert) {
+            validations++; // missing identity for inverted requirement is considered a validation
+          } else {
+            continue;
+          }
+        } else if (_validateCredentialWithRegistry(
+            ccid, account, source.credentialRegistry, source.dataValidator, credentialTypeId, invert, context
+          )) {
+          validations++;
+        }
+        if (validations >= minValidations) {
+          return validations;
+        }
+        // solhint-disable-next-line no-empty-blocks
+      } catch {} // skip failed identity lookup
     }
     return validations;
   }
@@ -336,12 +355,22 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
       return true;
     }
 
-    // Validate credential data
-    bytes memory credentialData = ICredentialRegistry(credentialRegistry).getCredential(ccid, credential).credentialData;
+    ICredentialRegistry.Credential memory registryCredential;
 
-    try ICredentialDataValidator(dataValidator).validateCredentialData(
-      ccid, account, credential, credentialData, context
-    ) returns (bool valid) {
+    // Get credential from registry
+    try ICredentialRegistry(credentialRegistry).getCredential(ccid, credential) returns (
+      ICredentialRegistry.Credential memory foundCredential
+    ) {
+      registryCredential = foundCredential;
+    } catch {
+      return false;
+    }
+
+    // Validate credential using data validator
+    try ICredentialDataValidator(dataValidator)
+      .validateCredentialData(ccid, account, credential, registryCredential.credentialData, context) returns (
+      bool valid
+    ) {
       return valid;
     } catch {
       return false;

@@ -181,6 +181,10 @@ keccak256("com.app.level.gold")
 | `common.aml`        | Identity is not flagged by AML requirements |
 | `common.accredited` | Identity is a qualified accredited investor |
 
+### Credential Requirements
+
+An **Identity Validator** is supplied with the various credential requirements required for an identity to be considered valid. Within a single requirement, it is possible to specify multiple credential type identifiers. The purpose of this is in case different sources for the requirement use different credential type identifiers but which refer to the same logical credential. For example, one source might use `common.accredited`, whereas another might call it `cred.high_net_worth`. It is important that each credential type id **within a single requirement** always refer to the same logical concept. If multiple credential types are all required to exist, they must be modeled as separate requirements, not as multiple credential type ids within a single requirement.
+
 ### Credential Data
 
 A credential in the **Credential Registry** can optionally include associated `bytes` of data. Depending on the use case, this data may be minimal (e.g., an offchain reference or a hashed proof) or more descriptive.

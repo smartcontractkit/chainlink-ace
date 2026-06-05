@@ -3,10 +3,11 @@ pragma solidity ^0.8.20;
 
 import {ICredentialRegistry} from "./interfaces/ICredentialRegistry.sol";
 import {ICredentialValidator} from "./interfaces/ICredentialValidator.sol";
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {PolicyProtectedUpgradeable} from "../../policy-management/src/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
-  string public constant override typeAndVersion = "CredentialRegistry 1.0.0";
+contract CredentialRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, ICredentialRegistry {
+  string public constant override typeAndVersion = "CredentialRegistry 1.1.1";
 
   /// @custom:storage-location erc7201:chainlink.ace.CredentialRegistry
   struct CredentialRegistryStorage {
@@ -27,6 +28,12 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   /**
    * @dev Initializes the credential registry and sets the policy engine.
    * @param policyEngine The address of the policy engine contract.
@@ -43,6 +50,10 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
 
   // solhint-disable-next-line no-empty-blocks
   function __CredentialRegistry_init_unchained() internal onlyInitializing {}
+
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /// @inheritdoc ICredentialRegistry
   function registerCredential(
@@ -213,14 +224,20 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
     return true;
   }
 
-  function _validate(bytes32 ccid, bytes32 credentialTypeId, bytes calldata /*context*/ ) internal view returns (bool) {
+  function _validate(
+    bytes32 ccid,
+    bytes32 credentialTypeId,
+    bytes calldata /*context*/
+  )
+    internal
+    view
+    returns (bool)
+  {
     uint256 length = _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].length;
     for (uint256 i = 0; i < length; i++) {
       if (_credentialRegistryStorage().credentialTypeIdsByCCID[ccid][i] == credentialTypeId) {
-        return (
-          _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt == 0
-            || _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt > block.timestamp
-        );
+        return (_credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt == 0
+            || _credentialRegistryStorage().credentials[ccid][credentialTypeId].expiresAt > block.timestamp);
       }
     }
     return false;
@@ -241,7 +258,8 @@ contract CredentialRegistry is PolicyProtectedUpgradeable, ICredentialRegistry {
       }
     }
     _credentialRegistryStorage().credentialTypeIdsByCCID[ccid].push(credentialTypeId);
-    _credentialRegistryStorage().credentials[ccid][credentialTypeId] = Credential(expiresAt, credentialData);
+    _credentialRegistryStorage().credentials[ccid][credentialTypeId] =
+      Credential({expiresAt: expiresAt, credentialData: credentialData});
     emit CredentialRegistered(ccid, credentialTypeId, expiresAt, credentialData);
   }
 }

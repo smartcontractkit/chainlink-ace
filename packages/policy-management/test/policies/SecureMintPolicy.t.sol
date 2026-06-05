@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
-import {SecureMintPolicy} from "@chainlink/policy-management/policies/SecureMintPolicy.sol";
+import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
+import {Policy, SecureMintPolicy} from "../../src/policies/SecureMintPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {MockAggregatorV3} from "../helpers/MockAggregatorV3.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
@@ -54,8 +54,7 @@ contract SecureMintPolicyTest is BaseProxyTest {
         abi.encode(
           address(porFeed),
           SecureMintPolicy.ReserveMarginConfigs({
-            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None,
-            reserveMarginAmount: 0
+            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None, reserveMarginAmount: 0
           }),
           0,
           SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
@@ -89,8 +88,7 @@ contract SecureMintPolicyTest is BaseProxyTest {
         abi.encode(
           address(porFeed),
           SecureMintPolicy.ReserveMarginConfigs({
-            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None,
-            reserveMarginAmount: 0
+            reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None, reserveMarginAmount: 0
           }),
           600,
           SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
@@ -617,5 +615,43 @@ contract SecureMintPolicyTest is BaseProxyTest {
       abi.encode(recipient, 1 ether)
     );
     token.mint(recipient, 1 ether);
+  }
+
+  function test_misconfiguration_failure() public {
+    vm.startPrank(deployer);
+
+    policyEngine.removePolicy(address(token), MockTokenUpgradeable.mint.selector, address(policy));
+
+    policyEngine.setExtractor(MockTokenUpgradeable.mint.selector, address(0));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.mint.selector, address(policy), new bytes32[](0));
+
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.mint.selector,
+      sender: deployer,
+      data: abi.encode(recipient, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected 1 parameter");
+    _expectRunError(address(policy), error, payload);
+    token.mint(recipient, 100);
+  }
+
+  function test_multipleTargets_failure() public {
+    vm.startPrank(deployer);
+
+    address secondToken = makeAddr("secondToken");
+
+    vm.expectRevert(abi.encodeWithSelector(Policy.PolicyAlreadyBound.selector, token));
+
+    policyEngine.addPolicy(address(secondToken), MockTokenUpgradeable.mint.selector, address(policy), new bytes32[](0));
+  }
+
+  function test_changeTargets_succeeds() public {
+    vm.startPrank(deployer);
+
+    address secondToken = makeAddr("secondToken");
+
+    policyEngine.removePolicy(address(token), MockTokenUpgradeable.mint.selector, address(policy));
+    policyEngine.addPolicy(address(secondToken), MockTokenUpgradeable.mint.selector, address(policy), new bytes32[](0));
   }
 }

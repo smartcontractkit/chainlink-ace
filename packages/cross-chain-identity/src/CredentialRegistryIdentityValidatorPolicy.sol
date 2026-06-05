@@ -2,12 +2,24 @@
 pragma solidity ^0.8.20;
 
 import {CredentialRegistryIdentityValidator} from "./CredentialRegistryIdentityValidator.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
+import {IPolicyEngine} from "../../policy-management/src/interfaces/IPolicyEngine.sol";
+import {Policy} from "../../policy-management/src/core/Policy.sol";
+import {ICredentialRequirements} from "./interfaces/ICredentialRequirements.sol";
 
 contract CredentialRegistryIdentityValidatorPolicy is Policy, CredentialRegistryIdentityValidator {
-  string public constant override typeAndVersion = "CredentialRegistryIdentityValidatorPolicy 1.0.0";
+  string public constant override typeAndVersion = "CredentialRegistryIdentityValidatorPolicy 1.1.1";
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - addCredentialRequirement
+   * - removeCredentialRequirement
+   * - addCredentialSource
+   *  -removeCredentialSource
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.addCredentialRequirement.selector || selector == this.removeCredentialRequirement.selector
+        || selector == this.addCredentialSource.selector || selector == this.removeCredentialSource.selector);
+  }
 
   /**
    * @notice Configures the policy by setting up credential sources and credential requirements.

@@ -17,17 +17,45 @@ tab_width = 2
 wrap_comments = true
 
 [profile.compliance-token-erc20]
-src = 'packages/token/erc-20/src'
-test = 'packages/token/erc-20/test'
+src = 'packages/tokens/erc-20/src'
+test = 'packages/tokens/erc-20/test'
+ignored_warnings_from = ["packages/tokens/erc-20/test/"]
 
 [profile.compliance-token-erc3643]
-src = 'packages/token/erc-3643/src'
-test = 'packages/token/erc-3643/test'
+src = 'packages/tokens/erc-3643/src'
+test = 'packages/tokens/erc-3643/test'
+ignored_warnings_from = ["packages/tokens/erc-3643/test/"]
 
 [profile.policy-management]
 src = 'packages/policy-management/src'
 test = 'packages/policy-management/test'
+ignored_warnings_from = ["packages/policy-management/test/"]
 
 [profile.cross-chain-identity]
 src = 'packages/cross-chain-identity/src'
 test = 'packages/cross-chain-identity/test'
+ignored_warnings_from = ["packages/cross-chain-identity/test/"]
+
+[lint]
+exclude_lints = [
+    "asm-keccak256",
+    "mixed-case-function",
+    "pascal-case-struct",
+    "mixed-case-variable",
+    "screaming-snake-case-const",
+    "screaming-snake-case-immutable",
+    "unaliased-plain-import"
+]
+
+[profile.test]
+ignored_warnings_from = [
+    "packages/cross-chain-identity/test/",
+    "packages/policy-management/test/",
+    "packages/tokens/erc20/test/",
+    "packages/tokens/erc-3643/test/"
+]
+
+[profile.test.lint]
+exclude_lints = [
+    "erc20-unchecked-transfer"
+]

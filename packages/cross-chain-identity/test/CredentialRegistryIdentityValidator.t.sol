@@ -3,18 +3,17 @@ pragma solidity ^0.8.20;
 
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
 import {ICredentialRegistry} from "../src/interfaces/ICredentialRegistry.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidator} from "../src/CredentialRegistryIdentityValidator.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {MockCredentialDataValidator} from "./helpers/MockCredentialDataValidator.sol";
+import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
 import {MockCredentialRegistryReverting} from "./helpers/MockCredentialRegistryReverting.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
   bytes32 public constant REQUIREMENT_KYC = keccak256("KYC");
   bytes32 public constant REQUIREMENT_ACCREDITED = keccak256("ACCREDITED");
+  bytes32 public constant REQUIREMENT_NON_SANCTIONED = keccak256("NON_SANCTIONED");
   bytes32 public constant CREDENTIAL_KYC = keccak256("common.kyc");
   bytes32 public constant CREDENTIAL_ACCREDITED = keccak256("common.accredited");
   bytes32 public constant CREDENTIAL_INVALID_NATIONALITY = keccak256("common.invalid.nationality");
@@ -342,7 +341,7 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
     assertFalse(s_identityValidator.validate(account1, ""));
   }
 
-  function test_validate_credentialRequirementInvertNotPresent_succeeds() public {
+  function test_validate_credentialRequirementInvertCredNotPresent_succeeds() public {
     address account1 = makeAddr("account1");
     bytes32 ccid = keccak256("account1");
 
@@ -352,7 +351,25 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
 
     s_identityValidator.addCredentialRequirement(
       ICredentialRequirements.CredentialRequirementInput(
-        CREDENTIAL_INVALID_NATIONALITY, s_credentials_invalid_nationality, 1, true
+        REQUIREMENT_NON_SANCTIONED, s_credentials_invalid_nationality, 1, true
+      )
+    );
+    s_identityValidator.addCredentialSource(
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_INVALID_NATIONALITY, address(s_identityRegistry), address(s_credentialRegistry), address(0)
+      )
+    );
+
+    assertTrue(s_identityValidator.validate(account1, ""));
+  }
+
+  function test_validate_credentialRequirementInvertMissingCCID_succeeds() public {
+    address account1 = makeAddr("account1");
+
+    s_identityValidator.removeCredentialRequirement(REQUIREMENT_KYC);
+    s_identityValidator.addCredentialRequirement(
+      ICredentialRequirements.CredentialRequirementInput(
+        REQUIREMENT_NON_SANCTIONED, s_credentials_invalid_nationality, 1, true
       )
     );
     s_identityValidator.addCredentialSource(
@@ -372,7 +389,7 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
 
     s_identityValidator.addCredentialRequirement(
       ICredentialRequirements.CredentialRequirementInput(
-        CREDENTIAL_INVALID_NATIONALITY, s_credentials_invalid_nationality, 1, true
+        REQUIREMENT_NON_SANCTIONED, s_credentials_invalid_nationality, 1, true
       )
     );
     s_identityValidator.addCredentialSource(
@@ -388,7 +405,7 @@ contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {
     vm.expectRevert();
     s_identityValidator.addCredentialRequirement(
       ICredentialRequirements.CredentialRequirementInput(
-        CREDENTIAL_INVALID_NATIONALITY, s_credentials_invalid_nationality, 0, false
+        REQUIREMENT_NON_SANCTIONED, s_credentials_invalid_nationality, 0, false
       )
     );
   }

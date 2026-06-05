@@ -2,10 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {IIdentityRegistry} from "./interfaces/IIdentityRegistry.sol";
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {PolicyProtectedUpgradeable} from "../../policy-management/src/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
-  string public constant override typeAndVersion = "IdentityRegistry 1.0.0";
+contract IdentityRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, IIdentityRegistry {
+  string public constant override typeAndVersion = "IdentityRegistry 1.1.1";
 
   /// @custom:storage-location erc7201:chainlink.ace.IdentityRegistry
   struct IdentityRegistryStorage {
@@ -28,6 +29,12 @@ contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   /**
    * @dev Initializes the identity registry and sets the policy engine.
    * @param policyEngine The address of the policy engine contract.
@@ -44,6 +51,10 @@ contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
 
   // solhint-disable-next-line no-empty-blocks
   function __IdentityRegistry_init_unchained() internal onlyInitializing {}
+
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /// @inheritdoc IIdentityRegistry
   function registerIdentity(
@@ -78,7 +89,13 @@ contract IdentityRegistry is PolicyProtectedUpgradeable, IIdentityRegistry {
     }
   }
 
-  function _registerIdentity(bytes32 ccid, address account, bytes calldata /*context*/ ) internal {
+  function _registerIdentity(
+    bytes32 ccid,
+    address account,
+    bytes calldata /*context*/
+  )
+    internal
+  {
     if (ccid == bytes32(0)) {
       revert InvalidIdentityConfiguration("CCID cannot be empty");
     }

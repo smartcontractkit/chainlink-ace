@@ -2,14 +2,15 @@
 pragma solidity ^0.8.20;
 
 import {ITrustedIssuerRegistry} from "./interfaces/ITrustedIssuerRegistry.sol";
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {PolicyProtectedUpgradeable} from "../../policy-management/src/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title TrustedIssuerRegistry
  * @dev Implementation of the ITrustedIssuerRegistry interface using ERC-7201 storage pattern.
  */
-contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegistry {
-  string public constant override typeAndVersion = "TrustedIssuerRegistry 1.0.0";
+contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, ITrustedIssuerRegistry {
+  string public constant override typeAndVersion = "TrustedIssuerRegistry 1.1.1";
 
   /// @custom:storage-location erc7201:chainlink.ace.TrustedIssuerRegistry
   struct TrustedIssuerRegistryStorage {
@@ -29,6 +30,8 @@ contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegi
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -48,6 +51,10 @@ contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegi
   }
 
   function __TrustedIssuerRegistry_init_unchained() internal onlyInitializing {}
+
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   // ------------------------------------------------------------------------
   // Externals
@@ -79,7 +86,12 @@ contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegi
   // internals
   // ------------------------------------------------------------------------
 
-  function _addTrustedIssuer(string memory issuerId, bytes calldata context) internal {
+  function _addTrustedIssuer(
+    string memory issuerId,
+    bytes calldata /*context*/
+  )
+    internal
+  {
     if (bytes(issuerId).length == 0) {
       revert("issuerId cannot be empty");
     }
@@ -97,7 +109,12 @@ contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, ITrustedIssuerRegi
     emit TrustedIssuerAdded(issuerIdHash, issuerId);
   }
 
-  function _removeTrustedIssuer(string memory issuerId, bytes calldata context) internal {
+  function _removeTrustedIssuer(
+    string memory issuerId,
+    bytes calldata /*context*/
+  )
+    internal
+  {
     if (bytes(issuerId).length == 0) {
       revert("issuerId cannot be empty");
     }

@@ -138,7 +138,7 @@ The Policy Management component offers a flexible approach, allowing you to use 
 
 This component includes a rich library of pre-built, audited policies to accelerate development. These policies cover a wide range of common compliance and access control scenarios.
 
-- **Access Control**: `AllowPolicy`, `BypassPolicy`, `RejectPolicy`, `OnlyOwnerPolicy`, `OnlyAuthorizedSenderPolicy`, `RoleBasedAccessControlPolicy`.
+- **Access Control**: `AllowPolicy`, `BypassPolicy`, `RejectPolicy`, `OnlyOwnerPolicy`, `OnlySubjectOwnerPolicy`, `OnlyAuthorizedSenderPolicy`, `RoleBasedAccessControlPolicy`.
 - **Transaction Limits**: `MaxPolicy`, `VolumePolicy`, `VolumeRatePolicy`, `SecureMintPolicy`.
 - **Time-Based Rules**: `IntervalPolicy`, `PausePolicy`.
 
@@ -180,6 +180,8 @@ Learn more about [Cross-Chain Identity](../cross-chain-identity/README.md).
 The Policy Management component is incredibly powerful, but its security depends on correct configuration and management.
 
 - **Policy Management is Critical**: Only authorized roles MUST be able to add, remove, or reorder policies in the `PolicyEngine`. Malicious updates could disable or circumvent all compliance rules.
+- **Policy State Scope Matters**: Some policies are designed to have different state/configuration for each subject they are protecting, whereas other policies can either
+ be stateless or are designed to share the state across all subjects they are protecting. Additionally, some policies can only be added to a single subject.
 - **Policy Order Matters**: Policies are executed in the order they are added. A policy that returns `Allowed` will bypass all subsequent policies. Ensure that high-priority checks and restrictive policies are ordered first.
 - **Trust in Policies**: A malicious or poorly written policy can introduce vulnerabilities. Only install trusted, audited policies. The `postRun` function, in particular, can modify state and must be treated with extreme caution.
 - **External Call Risks**: Policies that make external calls (e.g., to data sources, identity registries, or oracles) can introduce risks like denial of service or gas exhaustion. Since most policy `run()` functions are `view` (read-only), traditional reentrancy attacks are not possible, but **policy administrators** must ensure that external contracts are trusted and reliable when composing policies dynamically.

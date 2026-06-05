@@ -17,15 +17,17 @@ interface IPolicy is IERC165 {
 
   /**
    * @notice Hook called upon installation of the policy.
+   * @param subject The address of the protected contract for which the policy engine has added the policy instance.
    * @param selector The selector of the policy.
    */
-  function onInstall(bytes4 selector) external;
+  function onInstall(address subject, bytes4 selector) external;
 
   /**
    * @notice Hook called upon uninstallation of the policy.
+   * @param subject The address of the protected contract for which the policy engine has removed the policy instance.
    * @param selector The selector of the policy.
    */
-  function onUninstall(bytes4 selector) external;
+  function onUninstall(address subject, bytes4 selector) external;
 
   /**
    * @notice Runs the policy.

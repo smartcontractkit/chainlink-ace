@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IExtractor} from "@chainlink/policy-management/interfaces/IExtractor.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
+import {IExtractor} from "../interfaces/IExtractor.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
 import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenERC20.sol";
 
 /**
@@ -14,7 +14,7 @@ import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenER
  */
 contract ComplianceTokenForceTransferExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ComplianceTokenForceTransferExtractor 1.0.0";
+  string public constant override typeAndVersion = "ComplianceTokenForceTransferExtractor 1.1.1";
 
   /// @notice Parameter key for the sender/from address in forced transfer operations
   bytes32 public constant PARAM_FROM = keccak256("from");

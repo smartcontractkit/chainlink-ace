@@ -162,7 +162,7 @@ Now that you understand the integration requirements, here's a complete, working
 This example includes:
 
 1. A simple vault contract that inherits from `PolicyProtected` ([`MyVault.sol`](./MyVault.sol)).
-2. A deployment script that sets up the `PolicyEngine` and attaches a `PausePolicy` ([`DeployGettingStarted.s.sol`](../script/getting_started/DeployGettingStarted.s.sol)).
+2. A deployment script that sets up the `PolicyEngine` and attaches a `PausePolicy` ([`DeployGettingStarted.s.sol`](../scripts/getting_started/DeployGettingStarted.s.sol)).
 3. Test commands to demonstrate pausing and unpausing vault operations.
 
 ### The vault contract
@@ -204,7 +204,7 @@ contract MyVault is PolicyProtected {
 
 ### The deployment script
 
-Here's the deployment script ([`DeployGettingStarted.s.sol`](../script/getting_started/DeployGettingStarted.s.sol)):
+Here's the deployment script ([`DeployGettingStarted.s.sol`](../scripts/getting_started/DeployGettingStarted.s.sol)):
 
 > **Note on Proxy Deployment:** All ACE components must be deployed behind a proxy because they use OpenZeppelin's upgradeable contracts pattern (disabled constructors with initializers). This guide uses `ERC1967Proxy`, which enables upgradeability—you can update contract logic while preserving state and addresses. In production, you may also encounter minimal proxies (clones) for components that don't require upgradeability.
 
@@ -334,7 +334,7 @@ Now you're ready to deploy your policy-protected vault:
 export ETH_RPC_URL=http://localhost:8545
 export PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-forge script script/getting_started/DeployGettingStarted.s.sol:DeployGettingStarted --rpc-url $ETH_RPC_URL --private-key $PRIVATE_KEY --broadcast
+forge script scripts/getting_started/DeployGettingStarted.s.sol:DeployGettingStarted --rpc-url $ETH_RPC_URL --private-key $PRIVATE_KEY --broadcast
 ```
 
 #### Test the compliance system
@@ -464,7 +464,7 @@ Don't reinvent the wheel. Use our audited, production-ready token implementation
 
 - **[ComplianceTokenERC20](../packages/tokens/erc-20/src/ComplianceTokenERC20.sol)**
 - **[ComplianceTokenERC3643](../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol)**
-- **[Example Deployment Scripts](../script/)** - See how to deploy and configure these tokens
+- **[Example Deployment Scripts](../scripts/deploy/)** - See how to deploy and configure these tokens
 
 ---
 

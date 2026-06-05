@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IExtractor} from "@chainlink/policy-management/interfaces/IExtractor.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
+import {IExtractor} from "../interfaces/IExtractor.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -13,7 +13,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 contract ERC20ApproveExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ERC20ApproveExtractor 1.0.0";
+  string public constant override typeAndVersion = "ERC20ApproveExtractor 1.1.1";
 
   /// @notice Parameter key for the account granting the approval (msg.sender)
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");

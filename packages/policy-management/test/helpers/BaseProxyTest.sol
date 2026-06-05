@@ -4,9 +4,11 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
+import {PolicyEngineFactory} from "../../src/core/PolicyEngineFactory.sol";
 import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
-import {Policy} from "../../src/core/Policy.sol";
+import {PolicyFactory} from "../../src/core/PolicyFactory.sol";
 import {MockTokenUpgradeable} from "./MockTokenUpgradeable.sol";
+import {MockTokenFlexibleUpgradeable} from "./MockTokenFlexibleUpgradeable.sol";
 
 /**
  * @title BaseProxyTest
@@ -14,16 +16,25 @@ import {MockTokenUpgradeable} from "./MockTokenUpgradeable.sol";
  * @dev Provides helper functions to deploy common policy-management contracts with proper proxy pattern
  */
 abstract contract BaseProxyTest is Test {
+  PolicyEngineFactory internal s_policyEngineFactory = new PolicyEngineFactory();
+  PolicyFactory internal s_policyFactory = new PolicyFactory();
+
+  PolicyEngine internal s_policyEngineImpl = new PolicyEngine();
+
+  uint256 internal s_policyEngineNonce = 0;
+  uint256 internal s_policyNonce = 0;
+
   /**
    * @notice Deploy PolicyEngine through proxy
-   * @param defaultAllow The default policy result for the engine (true = allow, false = reject)
+   * @param defaultAllow Whether the default policy engine rule will allow or reject the transaction
+   * @param initialOwner The address of the initial owner of the policy engine
    * @return The deployed PolicyEngine proxy instance
    */
   function _deployPolicyEngine(bool defaultAllow, address initialOwner) internal returns (PolicyEngine) {
-    PolicyEngine policyEngineImpl = new PolicyEngine();
-    bytes memory policyEngineData = abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultAllow, initialOwner);
-    ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
-    return PolicyEngine(address(policyEngineProxy));
+    address policyEngine = s_policyEngineFactory.createUpgradeablePolicyEngine(
+      address(s_policyEngineImpl), bytes32(s_policyEngineNonce++), defaultAllow, initialOwner
+    );
+    return PolicyEngine(policyEngine);
   }
 
   /**
@@ -43,20 +54,33 @@ abstract contract BaseProxyTest is Test {
     internal
     returns (address)
   {
-    bytes memory policyData = abi.encodeWithSelector(Policy.initialize.selector, policyEngine, owner, parameters);
-    ERC1967Proxy policyProxy = new ERC1967Proxy(policyImpl, policyData);
-    return address(policyProxy);
+    return s_policyFactory.createUpgradeablePolicy(
+      address(policyImpl), bytes32(s_policyNonce++), policyEngine, owner, parameters
+    );
   }
 
   /**
-   * @notice Deploy MockToken through proxy
+   * @notice Deploy MockTokenUpgradeable through proxy
    * @param policyEngine The address of the policy engine contract
-   * @return The deployed MockToken proxy address
+   * @return The deployed MockTokenUpgradeable proxy address
    */
   function _deployMockToken(address policyEngine) internal returns (address) {
     // Import and create MockToken implementation
     MockTokenUpgradeable mockTokenImpl = new MockTokenUpgradeable();
     bytes memory mockTokenData = abi.encodeWithSelector(MockTokenUpgradeable.initialize.selector, policyEngine);
+    ERC1967Proxy mockTokenProxy = new ERC1967Proxy(address(mockTokenImpl), mockTokenData);
+    return address(mockTokenProxy);
+  }
+
+  /**
+   * @notice Deploy MockTokenFlexibleUpgradeable through proxy
+   * @param policyEngine The address of the policy engine contract
+   * @return The deployed MockTokenFlexibleUpgradeable proxy address
+   */
+  function _deployMockFlexibleToken(address policyEngine) internal returns (address) {
+    // Import and create MockToken implementation
+    MockTokenFlexibleUpgradeable mockTokenImpl = new MockTokenFlexibleUpgradeable();
+    bytes memory mockTokenData = abi.encodeWithSelector(MockTokenFlexibleUpgradeable.initialize.selector, policyEngine);
     ERC1967Proxy mockTokenProxy = new ERC1967Proxy(address(mockTokenImpl), mockTokenData);
     return address(mockTokenProxy);
   }

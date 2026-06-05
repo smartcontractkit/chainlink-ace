@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {VolumeRatePolicy} from "@chainlink/policy-management/policies/VolumeRatePolicy.sol";
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {VolumeRatePolicy} from "../../src/policies/VolumeRatePolicy.sol";
+import {ERC20TransferExtractor} from "../../src/extractors/ERC20TransferExtractor.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
@@ -167,5 +168,24 @@ contract VolumeRatePolicyTest is BaseProxyTest {
     vm.startPrank(txSender);
     token.transfer(recipient, 200);
     vm.assertEq(token.balanceOf(recipient), 400);
+  }
+
+  function test_misconfiguration_failure() public {
+    vm.startPrank(deployer);
+    ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(
+      address(token), MockTokenUpgradeable.burn.selector, address(volumeRatePolicy), new bytes32[](0)
+    );
+
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(txSender, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected 2 parameters");
+    _expectRunError(address(volumeRatePolicy), error, payload);
+    token.burn(txSender, 100);
   }
 }

@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {ICertifiedActionValidator} from "@chainlink/policy-management/interfaces/ICertifiedActionValidator.sol";
-import {CertifiedActionValidatorPolicy} from "@chainlink/policy-management/policies/CertifiedActionValidatorPolicy.sol";
-import {CertifiedActionDONValidatorPolicy} from
-  "@chainlink/policy-management/policies/CertifiedActionDONValidatorPolicy.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ICertifiedActionValidator} from "../../src/interfaces/ICertifiedActionValidator.sol";
+import {CertifiedActionDONValidatorPolicy} from "../../src/policies/CertifiedActionDONValidatorPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {MockTokenExtractor} from "../helpers/MockTokenExtractor.sol";
 import {BaseCertifiedActionTest} from "../helpers/BaseCertifiedActionTest.sol";
@@ -152,7 +150,7 @@ contract CertifiedActionDONValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, abi.encode(signer)));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),

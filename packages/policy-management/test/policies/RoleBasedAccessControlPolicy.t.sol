@@ -2,9 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {RoleBasedAccessControlPolicy} from "@chainlink/policy-management/policies/RoleBasedAccessControlPolicy.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
+import {RoleBasedAccessControlPolicy} from "../../src/policies/RoleBasedAccessControlPolicy.sol";
+import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
@@ -239,5 +240,24 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
       abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
+  }
+
+  function test_misconfiguration_failure() public {
+    vm.startPrank(deployer);
+    ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
+    bytes32[] memory burnPolicyParams = new bytes32[](1);
+    burnPolicyParams[0] = mintBurnExtractor.PARAM_ACCOUNT();
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(policy), burnPolicyParams);
+
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(txSender, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected 0 parameters");
+    _expectRunError(address(policy), error, payload);
+    token.burn(txSender, 100);
   }
 }

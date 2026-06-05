@@ -48,6 +48,8 @@ interface ICertifiedActionValidator {
    */
   event PermitRevoked(bytes32 indexed permitId);
 
+  /// @notice Error emitted when a permit is invalid.
+  error InvalidPermit(bytes32 permitId);
   /// @notice Error emitted when a permit signature is invalid.
   error InvalidSignature(bytes32 permitId);
   /// @notice Error emitted when a permit has expired.
@@ -58,11 +60,13 @@ interface ICertifiedActionValidator {
   error PermitAlreadyPresented(bytes32 permitId);
   /// @notice Error emitted when a permit has been revoked.
   error PermitAlreadyRevoked(bytes32 permitId);
+  /// @notice Error emitted when a permit has been used more than the max allowed.
+  error PermitAlreadyUsed(bytes32 permitId, uint64 maxUses);
 
   /**
    * @notice Presents and stores a permit in the validator. Since only 1 valid permit for the same intent is allowed,
-   * presenting a new permit will override any previous permit for the same intent. Note that the act of presenting a
-   * permit override any ability for a context permit for the same intent.
+   * presenting a new permit will override any previous permit for the same intent. Note that a context permit
+   * can be used if the previously presented permit is no longer valid.
    * @param permit The permit to present.
    * @param signature The signature of the permit.
    */

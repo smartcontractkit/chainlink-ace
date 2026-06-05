@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ComplianceTokenStoreERC20} from "./ComplianceTokenStoreERC20.sol";
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PolicyProtectedUpgradeable} from "../../../policy-management/src/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title ComplianceTokenERC20
@@ -32,7 +32,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
  * @dev Note: Alternative implementations may handle frozen tokens differently,
  * such as automatically unfreezing tokens during operations for flexibility.
  */
-contract ComplianceTokenERC20 is Initializable, PolicyProtectedUpgradeable, ComplianceTokenStoreERC20, IERC20 {
+contract ComplianceTokenERC20 is PolicyProtectedUpgradeable, UUPSUpgradeable, ComplianceTokenStoreERC20, IERC20 {
   /**
    * @notice Emitted when a freeze has been placed on an account.
    * @param account The address of the account whose tokens were frozen.
@@ -54,6 +54,12 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtectedUpgradeable, Comp
    * @param amount The amount of tokens transferred.
    */
   event ForceTransfer(address indexed from, address indexed to, uint256 amount);
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
 
   /**
    * @dev Initializes the contract with the provided token metadata and assigns policy engine.
@@ -115,6 +121,10 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtectedUpgradeable, Comp
     $.decimals = tokenDecimals;
   }
 
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
+
   // ** ERC-20 Methods **
   function totalSupply() public view virtual override returns (uint256) {
     return getComplianceTokenStorage().totalSupply;
@@ -158,7 +168,15 @@ contract ComplianceTokenERC20 is Initializable, PolicyProtectedUpgradeable, Comp
     return getComplianceTokenStorage().decimals;
   }
 
-  function freeze(address account, uint256 amount, bytes calldata context) public virtual runPolicyWithContext(context) {
+  function freeze(
+    address account,
+    uint256 amount,
+    bytes calldata context
+  )
+    public
+    virtual
+    runPolicyWithContext(context)
+  {
     getComplianceTokenStorage().frozenBalances[account] += amount;
     emit Frozen(account, amount);
   }
