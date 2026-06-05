@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title SecureMintPolicy
@@ -12,6 +12,8 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * @dev Extends Chainlink's `Policy` reference implementation.
  * This policy checks if minting a specified amount would cause the total supply of a token to exceed the reserve value
  * provided by a Chainlink price feed.
+ *
+ * !!NOTE!! Each instance of this policy can only be added to a single protected contract.
  *
  * ## Core Parameters
  *
@@ -34,7 +36,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * - **IERC20**: The policy assumes the `subject` contract implements ERC-20 and supports `totalSupply()`.
  */
 contract SecureMintPolicy is Policy {
-  string public constant override typeAndVersion = "SecureMintPolicy 1.0.0";
+  string public constant override typeAndVersion = "SecureMintPolicy 1.1.1";
 
   /**
    * @notice Emitted when the PoR feed contract address is set.
@@ -105,6 +107,7 @@ contract SecureMintPolicy is Policy {
 
   /// @custom:storage-location erc7201:chainlink.ace.SecureMintPolicy
   struct SecureMintPolicyStorage {
+    address subject;
     /// @notice Chainlink AggregatorV3 price feed contract address.
     AggregatorV3Interface reservesFeed;
     /// @notice Reserve margin configuration parameters.
@@ -125,6 +128,48 @@ contract SecureMintPolicy is Policy {
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @dev record the subject in which the policy was added - until the policy is removed from this subject
+   *      only this subject can be used by this instance. this prevents accidental policy instance reuse
+   *      across multiple tokens since each policy instance is designed for use by only for a single token.
+   */
+  function onInstall(
+    address subject,
+    bytes4 /*selector*/
+  )
+    public
+    override
+    onlyPolicyEngine
+  {
+    SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage();
+    if ($.subject != address(0)) {
+      revert PolicyAlreadyBound($.subject);
+    }
+    $.subject = subject;
+  }
+
+  /**
+   * @dev clear the subject associated with this policy instance. the policy runs will revert until its added
+   *      to another subject (token).
+   */
+  function onUninstall(
+    address, /*subject*/
+    bytes4 /*selector*/
+  )
+    public
+    override
+    onlyPolicyEngine
+  {
+    SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage();
+    $.subject = address(0);
+  }
+
   /**
    * @notice Configures the policy with the provided parameters.
    * @param parameters ABI-encoded bytes containing [address reservesFeed, ReserveMarginConfigs reserveMarginConfigs,
@@ -132,86 +177,86 @@ contract SecureMintPolicy is Policy {
    */
   function configure(bytes calldata parameters) internal override {
     (
-      address reservesFeed,
-      ReserveMarginConfigs memory reserveMarginConfigs,
-      uint256 maxStalenessSeconds,
-      TokenMetadata memory tokenMetadata
+      address _reservesFeed,
+      ReserveMarginConfigs memory _reserveMarginConfigs,
+      uint256 _maxStalenessSeconds,
+      TokenMetadata memory _tokenMetadata
     ) = abi.decode(parameters, (address, ReserveMarginConfigs, uint256, TokenMetadata));
 
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage();
-    $.reservesFeed = AggregatorV3Interface(reservesFeed);
-    emit ReservesFeedSet(reservesFeed);
+    $.reservesFeed = AggregatorV3Interface(_reservesFeed);
+    emit ReservesFeedSet(_reservesFeed);
 
-    _setReserveMargin(reserveMarginConfigs.reserveMarginMode, reserveMarginConfigs.reserveMarginAmount);
+    _setReserveMargin(_reserveMarginConfigs.reserveMarginMode, _reserveMarginConfigs.reserveMarginAmount);
 
-    $.maxStalenessSeconds = maxStalenessSeconds;
-    emit MaxStalenessSecondsSet(maxStalenessSeconds);
+    $.maxStalenessSeconds = _maxStalenessSeconds;
+    emit MaxStalenessSecondsSet(_maxStalenessSeconds);
 
-    _setTokenMetadata(tokenMetadata.tokenAddress, tokenMetadata.tokenDecimals);
+    _setTokenMetadata(_tokenMetadata.tokenAddress, _tokenMetadata.tokenDecimals);
   }
 
   /**
    * @notice Updates the Chainlink price feed used for reserve validation.
    * @dev Throws when address is the same as the current one.
-   * @param reservesFeed The new Chainlink AggregatorV3 price feed contract address.
+   * @param _reservesFeed The new Chainlink AggregatorV3 price feed contract address.
    */
-  function setReservesFeed(address reservesFeed) external onlyOwner {
+  function setReservesFeed(address _reservesFeed) external onlyOwner {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
-    require(reservesFeed != address($.reservesFeed), "feed same as current");
-    $.reservesFeed = AggregatorV3Interface(reservesFeed);
-    emit ReservesFeedSet(reservesFeed);
+    require(_reservesFeed != address($.reservesFeed), "feed same as current");
+    $.reservesFeed = AggregatorV3Interface(_reservesFeed);
+    emit ReservesFeedSet(_reservesFeed);
   }
 
   /**
    * @notice Updates the token metadata used for scaling when the token omits metadata.
    * @dev Throws when the token address does not match the current one or the decimals are the same as the current
    * value.
-   * @param tokenAddress The address of the token.
-   * @param tokenDecimals The new token decimals.
+   * @param _tokenAddress The address of the token.
+   * @param _tokenDecimals The new token decimals.
    */
-  function setTokenMetadata(address tokenAddress, uint8 tokenDecimals) external onlyOwner {
+  function setTokenMetadata(address _tokenAddress, uint8 _tokenDecimals) external onlyOwner {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
     TokenMetadata memory tokenMetadata = $.tokenMetadata;
-    require(tokenMetadata.tokenAddress == tokenAddress, "token address mismatch");
-    require(tokenDecimals != tokenMetadata.tokenDecimals, "decimals same as current");
-    _setTokenMetadata(tokenAddress, tokenDecimals);
+    require(tokenMetadata.tokenAddress == _tokenAddress, "token address mismatch");
+    require(_tokenDecimals != tokenMetadata.tokenDecimals, "decimals same as current");
+    _setTokenMetadata(_tokenAddress, _tokenDecimals);
   }
 
-  function _setTokenMetadata(address tokenAddress, uint8 tokenDecimals) internal {
-    require(tokenDecimals > 0, "decimals must be > 0");
-    require(tokenDecimals <= 18, "decimals must be <= 18");
-    require(tokenAddress != address(0), "token address is zero");
-    try IERC20Metadata(tokenAddress).decimals() returns (uint8 value) {
-      require(value == tokenDecimals, "decimals mismatch with token metadata");
+  function _setTokenMetadata(address _tokenAddress, uint8 _tokenDecimals) internal {
+    require(_tokenDecimals > 0, "decimals must be > 0");
+    require(_tokenDecimals <= 18, "decimals must be <= 18");
+    require(_tokenAddress != address(0), "token address is zero");
+    try IERC20Metadata(_tokenAddress).decimals() returns (uint8 value) {
+      require(value == _tokenDecimals, "decimals mismatch with token metadata");
     } catch {
       // Ignore error, use provided decimals
     }
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
     TokenMetadata memory tokenMetadata = $.tokenMetadata;
-    tokenMetadata.tokenAddress = tokenAddress;
-    tokenMetadata.tokenDecimals = tokenDecimals;
+    tokenMetadata.tokenAddress = _tokenAddress;
+    tokenMetadata.tokenDecimals = _tokenDecimals;
     $.tokenMetadata = tokenMetadata;
-    emit TokenMetadataSet(tokenAddress, tokenDecimals);
+    emit TokenMetadataSet(_tokenAddress, _tokenDecimals);
   }
 
-  function _setReserveMargin(ReserveMarginMode mode, uint256 amount) internal {
-    require(uint256(mode) <= 4, "Invalid margin mode");
-    if (mode == ReserveMarginMode.PositivePercentage || mode == ReserveMarginMode.NegativePercentage) {
-      require(amount <= BASIS_POINTS, "margin must be <= BASIS_POINTS for percentage modes");
-    } else if (mode == ReserveMarginMode.PositiveAbsolute || mode == ReserveMarginMode.NegativeAbsolute) {
-      require(amount > 0, "margin must be > 0 for absolute modes");
+  function _setReserveMargin(ReserveMarginMode _mode, uint256 _amount) internal {
+    require(uint256(_mode) <= 4, "Invalid margin mode");
+    if (_mode == ReserveMarginMode.PositivePercentage || _mode == ReserveMarginMode.NegativePercentage) {
+      require(_amount <= BASIS_POINTS, "margin must be <= BASIS_POINTS for percentage modes");
+    } else if (_mode == ReserveMarginMode.PositiveAbsolute || _mode == ReserveMarginMode.NegativeAbsolute) {
+      require(_amount > 0, "margin must be > 0 for absolute modes");
     }
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
-    $.reserveMarginConfigs.reserveMarginMode = mode;
-    $.reserveMarginConfigs.reserveMarginAmount = amount;
-    emit ReserveMarginSet(mode, amount);
+    $.reserveMarginConfigs.reserveMarginMode = _mode;
+    $.reserveMarginConfigs.reserveMarginAmount = _amount;
+    emit ReserveMarginSet(_mode, _amount);
   }
 
   /**
    * @notice Updates the reserve margin mode and amount.
    * @dev Throws when mode is invalid or both the mode and amount are the same as the current values.
-   * @param reserveMarginMode The new reserve margin mode.
-   * @param reserveMarginAmount The new reserve margin amount. When reserveMarginMode is percentage-based, this
+   * @param _reserveMarginMode The new reserve margin mode.
+   * @param _reserveMarginAmount The new reserve margin amount. When reserveMarginMode is percentage-based, this
    * represents a hundredth of a percent.
    * @dev Precision Warning: When using percentage-based modes (PositivePercentage/NegativePercentage),
    * be aware that very small reserve values combined with high margin percentages may result in
@@ -220,26 +265,26 @@ contract SecureMintPolicy is Policy {
    *
    * For feeds with low precision or small values, consider using absolute margin modes instead.
    */
-  function setReserveMargin(ReserveMarginMode reserveMarginMode, uint256 reserveMarginAmount) external onlyOwner {
+  function setReserveMargin(ReserveMarginMode _reserveMarginMode, uint256 _reserveMarginAmount) external onlyOwner {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
     require(
-      reserveMarginMode != $.reserveMarginConfigs.reserveMarginMode
-        || reserveMarginAmount != $.reserveMarginConfigs.reserveMarginAmount,
+      _reserveMarginMode != $.reserveMarginConfigs.reserveMarginMode
+        || _reserveMarginAmount != $.reserveMarginConfigs.reserveMarginAmount,
       "margin same as current"
     );
-    _setReserveMargin(reserveMarginMode, reserveMarginAmount);
+    _setReserveMargin(_reserveMarginMode, _reserveMarginAmount);
   }
 
   /**
    * @notice Updates the maximum staleness seconds for the reserve price feed.
    * @dev Throws when the value is the same as the current value.
-   * @param maxStalenessSeconds The new maximum staleness seconds. 0 means no staleness check.
+   * @param _maxStalenessSeconds The new maximum staleness seconds. 0 means no staleness check.
    */
-  function setMaxStalenessSeconds(uint256 maxStalenessSeconds) external onlyOwner {
+  function setMaxStalenessSeconds(uint256 _maxStalenessSeconds) external onlyOwner {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
-    require(maxStalenessSeconds != $.maxStalenessSeconds, "value same as current");
-    $.maxStalenessSeconds = maxStalenessSeconds;
-    emit MaxStalenessSecondsSet(maxStalenessSeconds);
+    require(_maxStalenessSeconds != $.maxStalenessSeconds, "value same as current");
+    $.maxStalenessSeconds = _maxStalenessSeconds;
+    emit MaxStalenessSecondsSet(_maxStalenessSeconds);
   }
 
   /**
@@ -280,26 +325,26 @@ contract SecureMintPolicy is Policy {
 
   /**
    * @notice Calculates the total mintable amount based on the reserves and reserve margin mode.
-   * @param reserves The current reserves value.
+   * @param _reserves The current reserves value.
    * @return The total mintable amount.
    */
-  function totalMintableSupply(uint256 reserves) internal view returns (uint256) {
+  function totalMintableSupply(uint256 _reserves) internal view returns (uint256) {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
     if ($.reserveMarginConfigs.reserveMarginMode == ReserveMarginMode.None) {
-      return reserves;
+      return _reserves;
     } else if ($.reserveMarginConfigs.reserveMarginMode == ReserveMarginMode.PositivePercentage) {
       // WARNING: May round to zero for very small reserves with high margins
       // e.g., reserves=1, margin=9999 → 1 * 1 / BASIS_POINTS = 0
-      return (reserves * (BASIS_POINTS - $.reserveMarginConfigs.reserveMarginAmount)) / BASIS_POINTS;
+      return (_reserves * (BASIS_POINTS - $.reserveMarginConfigs.reserveMarginAmount)) / BASIS_POINTS;
     } else if ($.reserveMarginConfigs.reserveMarginMode == ReserveMarginMode.PositiveAbsolute) {
-      if (reserves < $.reserveMarginConfigs.reserveMarginAmount) {
+      if (_reserves < $.reserveMarginConfigs.reserveMarginAmount) {
         return 0;
       }
-      return reserves - $.reserveMarginConfigs.reserveMarginAmount;
+      return _reserves - $.reserveMarginConfigs.reserveMarginAmount;
     } else if ($.reserveMarginConfigs.reserveMarginMode == ReserveMarginMode.NegativePercentage) {
-      return (reserves * (BASIS_POINTS + $.reserveMarginConfigs.reserveMarginAmount)) / BASIS_POINTS;
+      return (_reserves * (BASIS_POINTS + $.reserveMarginConfigs.reserveMarginAmount)) / BASIS_POINTS;
     } else if ($.reserveMarginConfigs.reserveMarginMode == ReserveMarginMode.NegativeAbsolute) {
-      return reserves + $.reserveMarginConfigs.reserveMarginAmount;
+      return _reserves + $.reserveMarginConfigs.reserveMarginAmount;
     }
     revert("Invalid margin mode");
   }
@@ -328,6 +373,9 @@ contract SecureMintPolicy is Policy {
     uint256 amount = abi.decode(parameters[0], (uint256));
 
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
+    if ($.subject != subject) {
+      revert IPolicyEngine.PolicyRejected("invalid subject");
+    }
     (, int256 reserve,, uint256 updatedAt,) = $.reservesFeed.latestRoundData();
 
     // reserve is not expected to be negative
@@ -342,6 +390,8 @@ contract SecureMintPolicy is Policy {
     uint8 feedDecimals = $.reservesFeed.decimals();
     TokenMetadata memory tokenMetadata = $.tokenMetadata;
     // Scale reserve to token decimals even when the token omits metadata
+    // casting to 'uint256' is safe because reserves are never negative
+    // forge-lint: disable-next-line(unsafe-typecast)
     uint256 scaledReserve = uint256(reserve);
     if (tokenMetadata.tokenDecimals > feedDecimals) {
       uint256 factor = 10 ** (uint256(tokenMetadata.tokenDecimals) - uint256(feedDecimals));

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title VolumeRatePolicy
@@ -11,7 +11,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * This policy enforces limits on the total amount transferred per account over a configurable time period.
  */
 contract VolumeRatePolicy is Policy {
-  string public constant override typeAndVersion = "VolumeRatePolicy 1.0.0";
+  string public constant override typeAndVersion = "VolumeRatePolicy 1.1.1";
 
   /// @notice The transfer volume data of an account.
   struct TransferredAt {
@@ -34,7 +34,7 @@ contract VolumeRatePolicy is Policy {
     /// @notice The duration (in seconds) of the time period for tracking transfers.
     uint256 timePeriodDuration;
     /// @notice Tracks the transfer volume and time period for a specific account.
-    mapping(address account => TransferredAt transferredAt) transferredAtByAmount;
+    mapping(address subject => mapping(address account => TransferredAt transferredAt)) subjectAccountTransferred;
     /// @notice The maximum allowed transfer amount within a single time period
     uint256 maxAmount;
   }
@@ -47,6 +47,21 @@ contract VolumeRatePolicy is Policy {
     assembly {
       $.slot := VolumeRatePolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - setMaxAmount
+   * - setTimePeriodDuration
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.setMaxAmount.selector || selector == this.setTimePeriodDuration.selector);
   }
 
   /**
@@ -129,7 +144,7 @@ contract VolumeRatePolicy is Policy {
    */
   function run(
     address, /*caller*/
-    address, /*subject*/
+    address subject,
     bytes4, /*selector*/
     bytes[] calldata parameters,
     bytes calldata /*context*/
@@ -144,7 +159,7 @@ contract VolumeRatePolicy is Policy {
     VolumeRatePolicyStorage storage $ = _getVolumeRatePolicyStorage(); // Gas optimization: single storage reference
     uint256 timePeriod = block.timestamp / $.timePeriodDuration;
 
-    TransferredAt memory transferredAt = $.transferredAtByAmount[account];
+    TransferredAt memory transferredAt = $.subjectAccountTransferred[subject][account];
 
     if (timePeriod == transferredAt.timePeriod && transferredAt.timePeriodDuration == $.timePeriodDuration) {
       if (transferredAt.amount + amount > $.maxAmount) {
@@ -169,7 +184,7 @@ contract VolumeRatePolicy is Policy {
    */
   function postRun(
     address, /*caller*/
-    address, /*subject*/
+    address subject,
     bytes4, /*selector*/
     bytes[] calldata parameters,
     bytes calldata /*context*/
@@ -183,7 +198,7 @@ contract VolumeRatePolicy is Policy {
     VolumeRatePolicyStorage storage $ = _getVolumeRatePolicyStorage(); // Gas optimization: single storage reference
     uint256 timePeriod = block.timestamp / $.timePeriodDuration;
 
-    TransferredAt storage transferredAt = $.transferredAtByAmount[account];
+    TransferredAt storage transferredAt = $.subjectAccountTransferred[subject][account];
 
     if (transferredAt.timePeriod == timePeriod && transferredAt.timePeriodDuration == $.timePeriodDuration) {
       transferredAt.amount += amount;

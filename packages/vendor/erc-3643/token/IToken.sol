@@ -69,7 +69,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// @dev interface
 interface IToken is IERC20 {
   /// events
-
   /**
    *  this event is emitted when the token information is updated.
    *  the event is emitted by the token init function and by the setTokenInformation function

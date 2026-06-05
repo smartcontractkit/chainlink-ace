@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title VolumePolicy
@@ -12,7 +12,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * amount may differ from the amount parameter this policy validates against.
  */
 contract VolumePolicy is Policy {
-  string public constant override typeAndVersion = "VolumePolicy 1.0.0";
+  string public constant override typeAndVersion = "VolumePolicy 1.1.1";
 
   /**
    * @notice Emitted when the maximum volume limit is set.
@@ -41,6 +41,21 @@ contract VolumePolicy is Policy {
     assembly {
       $.slot := VolumePolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - setMax
+   * - setMin
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.setMax.selector || selector == this.setMin.selector);
   }
 
   /**

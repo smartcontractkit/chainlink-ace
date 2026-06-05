@@ -6,11 +6,11 @@ import {IMapper} from "../interfaces/IMapper.sol";
 import {IPolicy} from "../interfaces/IPolicy.sol";
 import {Policy} from "./Policy.sol";
 import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine {
-  string public constant override typeAndVersion = "PolicyEngine 1.0.0";
+contract PolicyEngine is UUPSUpgradeable, AccessControlUpgradeable, IPolicyEngine {
+  string public constant override typeAndVersion = "PolicyEngine 1.1.1";
 
   uint256 private constant MAX_POLICIES = 8;
   bytes32 public constant POLICY_CONFIG_ADMIN_ROLE = keccak256("POLICY_CONFIG_ADMIN_ROLE");
@@ -24,8 +24,9 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     mapping(address policy => uint256 configVersion) policyConfigVersions;
     mapping(address target => bool attached) targetAttached;
     mapping(address target => mapping(bytes4 selector => address[] policies)) targetPolicies;
-    mapping(address target => mapping(bytes4 selector => mapping(address policy => bytes32[] policyParameterNames)))
-      targetPolicyParameters;
+    mapping(
+      address target => mapping(bytes4 selector => mapping(address policy => bytes32[] policyParameterNames))
+    ) targetPolicyParameters;
     mapping(address target => bool hasTargetDefault) targetHasDefault;
     mapping(address target => bool targetDefaultPolicyAllow) targetDefaultPolicyAllow;
   }
@@ -43,6 +44,8 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -67,6 +70,10 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     _grantRole(ADMIN_ROLE, initialOwner);
     _grantRole(POLICY_CONFIG_ADMIN_ROLE, initialOwner);
   }
+
+  // Authorize contract upgrades to only the policy engine administrator role
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyRole(ADMIN_ROLE) {}
 
   /// @inheritdoc IPolicyEngine
   function attach() public {
@@ -121,15 +128,18 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
 
   /// @inheritdoc IPolicyEngine
   function check(IPolicyEngine.Payload calldata payload) public view virtual override {
-    address[] memory policies = _policyEngineStorage().targetPolicies[msg.sender][payload.selector];
+    if (!_policyEngineStorage().targetAttached[msg.sender]) {
+      revert IPolicyEngine.TargetNotAttached(msg.sender);
+    }
 
-    if (policies.length == 0) {
+    address[] memory policies = _policyEngineStorage().targetPolicies[msg.sender][payload.selector];
+    uint256 policiesLength = policies.length;
+    if (policiesLength == 0) {
       _checkDefaultPolicyAllowRevert(msg.sender, payload);
       return;
     }
-
     IPolicyEngine.Parameter[] memory extractedParameters = _extractParameters(payload);
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i = 0; i < policiesLength; i++) {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
@@ -138,8 +148,10 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
         extractedParameters,
         payload
       );
-      try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
-      returns (IPolicyEngine.PolicyResult policyResult) {
+      try IPolicy(policy)
+        .run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) returns (
+        IPolicyEngine.PolicyResult policyResult
+      ) {
         if (policyResult == IPolicyEngine.PolicyResult.Allowed) {
           return;
         } // else continue to next policy
@@ -153,15 +165,19 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
 
   /// @inheritdoc IPolicyEngine
   function run(IPolicyEngine.Payload calldata payload) public virtual override {
+    if (!_policyEngineStorage().targetAttached[msg.sender]) {
+      revert IPolicyEngine.TargetNotAttached(msg.sender);
+    }
+
     address[] memory policies = _policyEngineStorage().targetPolicies[msg.sender][payload.selector];
+    uint256 policiesLength = policies.length;
     IPolicyEngine.Parameter[] memory extractedParameters = _extractParameters(payload);
-    if (policies.length == 0) {
+    if (policiesLength == 0) {
       _checkDefaultPolicyAllowRevert(msg.sender, payload);
       emit PolicyRunComplete(payload.sender, msg.sender, payload.selector, extractedParameters, payload.context);
       return;
     }
-
-    for (uint256 i = 0; i < policies.length; i++) {
+    for (uint256 i = 0; i < policiesLength; i++) {
       address policy = policies[i];
 
       bytes[] memory policyParameterValues = _policyParameterValues(
@@ -170,12 +186,14 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
         extractedParameters,
         payload
       );
-      try IPolicy(policy).run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context)
-      returns (IPolicyEngine.PolicyResult policyResult) {
+      try IPolicy(policy)
+        .run(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) returns (
+        IPolicyEngine.PolicyResult policyResult
+      ) {
         // solhint-disable-next-line no-empty-blocks
-        try IPolicy(policy).postRun(
-          payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context
-        ) {} catch (bytes memory err) {
+        try IPolicy(policy)
+          .postRun(payload.sender, msg.sender, payload.selector, policyParameterValues, payload.context) {}
+        catch (bytes memory err) {
           revert IPolicyEngine.PolicyPostRunError(policy, err, payload);
         }
         if (policyResult == IPolicyEngine.PolicyResult.Allowed) {
@@ -228,7 +246,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     _checkPolicyConfiguration(target, selector, policy);
     _policyEngineStorage().targetPolicies[target][selector].push(policy);
     _policyEngineStorage().targetPolicyParameters[target][selector][policy] = policyParameterNames;
-    IPolicy(policy).onInstall(selector);
+    IPolicy(policy).onInstall(target, selector);
     emit PolicyAdded(
       target, selector, policy, _policyEngineStorage().targetPolicies[target][selector].length - 1, policyParameterNames
     );
@@ -258,7 +276,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     }
     policies[position] = policy;
     _policyEngineStorage().targetPolicyParameters[target][selector][policy] = policyParameterNames;
-    IPolicy(policy).onInstall(selector);
+    IPolicy(policy).onInstall(target, selector);
     emit PolicyAddedAt(target, selector, policy, position, policyParameterNames, policies);
   }
 
@@ -278,7 +296,7 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
       }
     }
     if (removedPolicy != address(0)) {
-      IPolicy(policy).onUninstall(selector);
+      IPolicy(policy).onUninstall(target, selector);
     }
   }
 
@@ -307,6 +325,9 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     override
     onlyRole(POLICY_CONFIG_ADMIN_ROLE)
   {
+    if (!Policy(policy).authorizeConfigSelector(configSelector)) {
+      revert IPolicyEngine.PolicyConfigurationError(policy, "selector is not an authorized configuration function");
+    }
     if (_policyEngineStorage().policyConfigVersions[policy] != configVersion) {
       revert IPolicyEngine.PolicyConfigurationVersionError(
         policy, configVersion, _policyEngineStorage().policyConfigVersions[policy]
@@ -322,6 +343,19 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
 
   function getPolicyConfigVersion(address policy) public view virtual override returns (uint256) {
     return _policyEngineStorage().policyConfigVersions[policy];
+  }
+
+  function upgradePolicy(
+    address policy,
+    address newImplementation,
+    bytes calldata data
+  )
+    public
+    virtual
+    override
+    onlyRole(ADMIN_ROLE)
+  {
+    Policy(policy).upgradeToAndCall(newImplementation, data);
   }
 
   function _handlePolicyError(Payload memory payload, address policy, bytes memory err) internal pure {
@@ -428,6 +462,8 @@ contract PolicyEngine is Initializable, AccessControlUpgradeable, IPolicyEngine 
     if (err.length < 4) {
       return (0, err);
     }
+    // casting to 'bytes4' is safe because the error is known to be a custom type
+    // forge-lint: disable-next-line(unsafe-typecast)
     bytes4 selector = bytes4(err);
     bytes memory errorData = new bytes(err.length - 4);
     for (uint256 i = 0; i < err.length - 4; i++) {

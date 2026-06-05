@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title IntervalPolicy
@@ -40,7 +40,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  *   with a 4-slot offset, effectively shifting the cycle start.
  */
 contract IntervalPolicy is Policy {
-  string public constant override typeAndVersion = "IntervalPolicy 1.0.0";
+  string public constant override typeAndVersion = "IntervalPolicy 1.1.1";
 
   /**
    * @notice Emitted when the start slot is updated.
@@ -92,6 +92,23 @@ contract IntervalPolicy is Policy {
     assembly {
       $.slot := IntervalPolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - setStartSlot
+   * - setEndSlot
+   * - setCycleParameters
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.setStartSlot.selector || selector == this.setEndSlot.selector
+        || selector == this.setCycleParameters.selector);
   }
 
   /**

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {MaxPolicy} from "@chainlink/policy-management/policies/MaxPolicy.sol";
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+import {IPolicyEngine, PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {MaxPolicy} from "../../src/policies/MaxPolicy.sol";
+import {ERC20TransferExtractor} from "../../src/extractors/ERC20TransferExtractor.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
@@ -58,5 +59,22 @@ contract MaxPolicyTest is BaseProxyTest {
       abi.encode(recipient, 200)
     );
     token.transfer(recipient, 200);
+  }
+
+  function test_misconfiguration_failure() public {
+    vm.startPrank(deployer);
+    ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(policy), new bytes32[](0));
+
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(recipient, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected 1 parameter");
+    _expectRunError(address(policy), error, payload);
+    token.burn(recipient, 100);
   }
 }

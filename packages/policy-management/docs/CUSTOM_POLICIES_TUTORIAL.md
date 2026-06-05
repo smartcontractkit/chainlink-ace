@@ -20,7 +20,7 @@ import { Policy } from "@chainlink/policy-management/core/Policy.sol";
 import { IPolicyEngine } from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 
 contract LockoutPolicy is Policy {
-    string public constant override typeAndVersion = "LockoutPolicy 1.0.0";
+    string public constant override typeAndVersion = "LockoutPolicy 1.1.0";
 
     // Our policy's logic will go here.
     function run(
@@ -48,7 +48,7 @@ We also need a public function that the policy owner can call to add or update a
 // ... imports ...
 
 contract LockoutPolicy is Policy {
-    string public constant override typeAndVersion = "LockoutPolicy 1.0.0";
+    string public constant override typeAndVersion = "LockoutPolicy 1.1.0";
 
     mapping(address => uint256) public lockoutExpiresAt;
 
@@ -159,7 +159,7 @@ import { IPolicyEngine } from "@chainlink/policy-management/interfaces/IPolicyEn
 
 contract MyCustomPolicy is Policy {
     // Define the policy type and version
-    string public constant override typeAndVersion = "MyCustomPolicy 1.0.0";
+    string public constant override typeAndVersion = "MyCustomPolicy 1.1.0";
 
     /**
      * @notice Use the `configure` function to decode and store any initial

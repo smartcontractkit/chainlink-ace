@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
 import {ICertifiedActionValidator} from "../interfaces/ICertifiedActionValidator.sol";
 import {CertifiedActionValidatorPolicy} from "./CertifiedActionValidatorPolicy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -54,7 +53,7 @@ contract CertifiedActionERC20TransferValidatorPolicy is CertifiedActionValidator
   }
 
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionERC20TransferValidatorPolicy 1.0.0";
+    return "CertifiedActionERC20TransferValidatorPolicy 1.1.1";
   }
 
   /**

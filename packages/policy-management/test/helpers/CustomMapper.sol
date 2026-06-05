@@ -5,7 +5,7 @@ import {IMapper} from "../../src/interfaces/IMapper.sol";
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 
 contract CustomMapper is IMapper {
-  string public constant override typeAndVersion = "CustomMapper 1.0.0";
+  string public constant override typeAndVersion = "CustomMapper 1.1.1";
 
   bytes[] private s_mappedParameters;
 
@@ -13,7 +13,9 @@ contract CustomMapper is IMapper {
     s_mappedParameters = mappedParameters;
   }
 
-  function map(IPolicyEngine.Parameter[] calldata /*extractedParameters*/ )
+  function map(
+    IPolicyEngine.Parameter[] calldata /*extractedParameters*/
+  )
     external
     view
     override

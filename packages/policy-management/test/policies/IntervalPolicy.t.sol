@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {IntervalPolicy} from "@chainlink/policy-management/policies/IntervalPolicy.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {IntervalPolicy} from "../../src/policies/IntervalPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
@@ -13,7 +12,7 @@ contract IntervalPolicyTest is BaseProxyTest {
   MockTokenUpgradeable public token;
   address public deployer;
   address public recipient;
-  uint256 public OFFSET_TIMESTAMP = 1737470407; // 	Tue Jan 21 2025 14:40:07
+  uint256 public OFFSET_TIMESTAMP = 1737470407; //  Tue Jan 21 2025 14:40:07
 
   function setUp() public {
     deployer = makeAddr("deployer");

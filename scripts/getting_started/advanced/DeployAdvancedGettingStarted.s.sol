@@ -7,30 +7,30 @@ import {console} from "forge-std/console.sol";
 
 // Core Contracts
 import {ComplianceTokenERC20} from "../../../packages/tokens/erc-20/src/ComplianceTokenERC20.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {IdentityRegistry} from "@chainlink/cross-chain-identity/IdentityRegistry.sol";
-import {CredentialRegistry} from "@chainlink/cross-chain-identity/CredentialRegistry.sol";
+import {PolicyEngine} from "../../../packages/policy-management/src/core/PolicyEngine.sol";
+import {Policy} from "../../../packages/policy-management/src/core/Policy.sol";
+import {IdentityRegistry} from "../../../packages/cross-chain-identity/src/IdentityRegistry.sol";
+import {CredentialRegistry} from "../../../packages/cross-chain-identity/src/CredentialRegistry.sol";
 
 // Policies
-import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
+import {OnlyOwnerPolicy} from "../../../packages/policy-management/src/policies/OnlyOwnerPolicy.sol";
 import {CredentialRegistryIdentityValidatorPolicy} from
-  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
+  "../../../packages/cross-chain-identity/src/CredentialRegistryIdentityValidatorPolicy.sol";
 import {SanctionsPolicy} from "../../../getting_started/advanced/SanctionsPolicy.sol";
-import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/OnlyAuthorizedSenderPolicy.sol";
+import {OnlyAuthorizedSenderPolicy} from "../../../packages/policy-management/src/policies/OnlyAuthorizedSenderPolicy.sol";
 
 // Extractors
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+import {ERC20TransferExtractor} from "../../../packages/policy-management/src/extractors/ERC20TransferExtractor.sol";
 import {ComplianceTokenMintBurnExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenMintBurnExtractor.sol";
+  "../../../packages/policy-management/src/extractors/ComplianceTokenMintBurnExtractor.sol";
 import {ComplianceTokenFreezeUnfreezeExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
+  "../../../packages/policy-management/src/extractors/ComplianceTokenFreezeUnfreezeExtractor.sol";
 import {ComplianceTokenForceTransferExtractor} from
-  "@chainlink/policy-management/extractors/ComplianceTokenForceTransferExtractor.sol";
+  "../../../packages/policy-management/src/extractors/ComplianceTokenForceTransferExtractor.sol";
 
 // Interfaces
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
+import {IPolicyEngine} from "../../../packages/policy-management/src/interfaces/IPolicyEngine.sol";
+import {ICredentialRequirements} from "../../../packages/cross-chain-identity/src/interfaces/ICredentialRequirements.sol";
 
 contract DeployAdvancedGettingStarted is Script {
   function run() external {

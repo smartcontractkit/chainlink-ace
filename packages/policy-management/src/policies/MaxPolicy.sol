@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that rejects requests if the maximum amount is exceeded (amount does not accumulate between calls).
  */
 contract MaxPolicy is Policy {
-  string public constant override typeAndVersion = "MaxPolicy 1.0.0";
+  string public constant override typeAndVersion = "MaxPolicy 1.1.1";
 
   /// @custom:storage-location erc7201:chainlink.ace.MaxPolicy
   struct MaxPolicyStorage {
@@ -17,12 +17,27 @@ contract MaxPolicy is Policy {
   }
 
   // keccak256(abi.encode(uint256(keccak256("chainlink.ace.MaxPolicy")) - 1)) & ~bytes32(uint256(0xff))
-  bytes32 private constant MaxPolicyStorageLocation = 0x02973c4e98711cfb712c36db17418ada2bb95a6216267426efdf4ae114fe9a00;
+  bytes32 private constant MaxPolicyStorageLocation =
+    0x02973c4e98711cfb712c36db17418ada2bb95a6216267426efdf4ae114fe9a00;
 
   function _getMaxPolicyStorage() private pure returns (MaxPolicyStorage storage $) {
     assembly {
       $.slot := MaxPolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - setMax
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.setMax.selector);
   }
 
   /**

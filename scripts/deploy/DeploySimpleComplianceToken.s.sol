@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ComplianceTokenERC3643} from "../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol";
+import {ComplianceTokenERC3643} from "../../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol";
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 

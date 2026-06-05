@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IPolicyEngine} from "../src/interfaces/IPolicyEngine.sol";
 import {IExtractor} from "../src/interfaces/IExtractor.sol";
+import {PolicyFactory} from "../src/core/PolicyFactory.sol";
 import {PolicyEngine} from "../src/core/PolicyEngine.sol";
 import {Policy} from "../src/core/Policy.sol";
 import {PolicyAlwaysAllowed, PolicyAlwaysAllowedWithPostRunError} from "./helpers/PolicyAlwaysAllowed.sol";
@@ -16,6 +17,7 @@ import {ExpectedParameterPolicy} from "./helpers/ExpectedParameterPolicy.sol";
 import {CustomMapper} from "./helpers/CustomMapper.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 import {PolicyAlwaysContinue} from "./helpers/PolicyAlwaysContinue.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract PolicyEngineTest is BaseProxyTest {
   PolicyEngine public policyEngine;
@@ -34,7 +36,8 @@ contract PolicyEngineTest is BaseProxyTest {
   function setUp() public {
     policyEngine = _deployPolicyEngine(false, address(this));
 
-    target = makeAddr("target");
+    MockToken mockToken = new MockToken(address(policyEngine));
+    target = address(mockToken);
 
     extractor = new DummyExtractor();
 
@@ -139,10 +142,7 @@ contract PolicyEngineTest is BaseProxyTest {
     uint256 amount = 100;
     bytes4 transferSelector = MockToken.transfer.selector;
     IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
-      selector: transferSelector,
-      sender: target,
-      data: abi.encode(recipient, amount),
-      context: new bytes(0)
+      selector: transferSelector, sender: target, data: abi.encode(recipient, amount), context: new bytes(0)
     });
     policyEngine.setExtractor(transferSelector, address(mockExtractor));
     policyEngine.setDefaultPolicyAllow(true);
@@ -243,8 +243,9 @@ contract PolicyEngineTest is BaseProxyTest {
   }
 
   function test_run_whenPolicyRevertsTransactionReverts() public {
-    PolicyFailingRun policyFailingRun =
-      PolicyFailingRun(_deployPolicy(address(policyFailingRunImpl), address(policyEngine), address(this), new bytes(0)));
+    PolicyFailingRun policyFailingRun = PolicyFailingRun(
+      _deployPolicy(address(policyFailingRunImpl), address(policyEngine), address(this), new bytes(0))
+    );
     PolicyAlwaysAllowed policyAllowed = PolicyAlwaysAllowed(
       _deployPolicy(address(policyAlwaysAllowedImpl), address(policyEngine), address(this), abi.encode(1))
     );
@@ -384,7 +385,8 @@ contract PolicyEngineTest is BaseProxyTest {
   }
 
   function test_run_forDifferentTargets() public {
-    address secondTarget = makeAddr("secondTarget");
+    MockToken secondToken = new MockToken(address(policyEngine));
+    address secondTarget = address(secondToken);
 
     PolicyAlwaysAllowed policy = PolicyAlwaysAllowed(
       _deployPolicy(address(policyAlwaysAllowedImpl), address(policyEngine), address(this), abi.encode(1))
@@ -472,5 +474,95 @@ contract PolicyEngineTest is BaseProxyTest {
       )
     );
     policyEngine.setPolicyConfiguration(address(policyRejected), 0, PolicyAlwaysRejected.configFunc.selector, "");
+  }
+
+  function test_setPolicyConfiguration_upgradeToAndCall_reverts() public {
+    address policyAdmin = makeAddr("policyAdmin");
+
+    policyEngine.grantRole(policyEngine.POLICY_CONFIG_ADMIN_ROLE(), policyAdmin);
+
+    PolicyAlwaysRejected policyRejected = PolicyAlwaysRejected(
+      _deployPolicy(address(policyAlwaysRejectedImpl), address(policyEngine), address(policyEngine), new bytes(0))
+    );
+
+    vm.startPrank(policyAdmin);
+
+    PolicyAlwaysRejected newImpl = new PolicyAlwaysRejected();
+    vm.label(address(newImpl), "NewPolicyAlwaysRejected");
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IPolicyEngine.PolicyConfigurationError.selector,
+        address(policyRejected),
+        "selector is not an authorized configuration function"
+      )
+    );
+    policyEngine.setPolicyConfiguration(
+      address(policyRejected), 0, UUPSUpgradeable.upgradeToAndCall.selector, abi.encodePacked(address(newImpl), "")
+    );
+  }
+
+  function test_upgradePolicy() public {
+    address admin = makeAddr("admin");
+
+    policyEngine.grantRole(policyEngine.ADMIN_ROLE(), admin);
+
+    PolicyAlwaysRejected policyRejected = PolicyAlwaysRejected(
+      _deployPolicy(address(policyAlwaysRejectedImpl), address(policyEngine), address(policyEngine), new bytes(0))
+    );
+
+    vm.startPrank(admin);
+
+    PolicyAlwaysRejected newImpl = new PolicyAlwaysRejected();
+    vm.label(address(newImpl), "NewPolicyAlwaysRejected");
+    policyEngine.upgradePolicy(address(policyRejected), address(newImpl), "");
+
+    // make sure state didnt change
+    assertEq(policyRejected.owner(), address(policyEngine));
+  }
+
+  function test_upgradePolicy_clone_rejects() public {
+    address admin = makeAddr("admin");
+
+    policyEngine.grantRole(policyEngine.ADMIN_ROLE(), admin);
+
+    PolicyFactory policyFactory = new PolicyFactory();
+    address policy = policyFactory.createPolicy(
+      address(policyAlwaysRejectedImpl), 0, address(policyEngine), address(policyEngine), new bytes(0)
+    );
+    PolicyAlwaysRejected policyRejected = PolicyAlwaysRejected(policy);
+
+    vm.startPrank(admin);
+
+    PolicyAlwaysRejected newImpl = new PolicyAlwaysRejected();
+    vm.label(address(newImpl), "NewPolicyAlwaysRejected");
+
+    vm.expectRevert(UUPSUpgradeable.UUPSUnauthorizedCallContext.selector);
+    policyEngine.upgradePolicy(address(policyRejected), address(newImpl), "");
+  }
+
+  function test_targetNotAttached_rejects() public {
+    PolicyEngine wrongPolicyEngine = _deployPolicyEngine(false, address(this));
+    MockToken misconfiguredToken = new MockToken(address(wrongPolicyEngine));
+    address misconfiguredTarget = address(misconfiguredToken);
+
+    PolicyAlwaysAllowed policy = PolicyAlwaysAllowed(
+      _deployPolicy(address(policyAlwaysAllowedImpl), address(policyEngine), address(this), abi.encode(1))
+    );
+
+    policyEngine.addPolicy(misconfiguredTarget, selector, address(policy), new bytes32[](0));
+
+    PolicyAlwaysRejected policyRejected = PolicyAlwaysRejected(
+      _deployPolicy(address(policyAlwaysRejectedImpl), address(policyEngine), address(this), new bytes(0))
+    );
+
+    policyEngine.addPolicy(misconfiguredTarget, selector, address(policyRejected), new bytes32[](0));
+
+    vm.startPrank(misconfiguredTarget);
+    IPolicyEngine.Payload memory misconfiguredTokenPayload = IPolicyEngine.Payload({
+      selector: selector, sender: misconfiguredTarget, data: new bytes(0), context: new bytes(0)
+    });
+    vm.expectRevert(abi.encodeWithSelector(IPolicyEngine.TargetNotAttached.selector, misconfiguredTarget));
+    policyEngine.run(misconfiguredTokenPayload);
   }
 }

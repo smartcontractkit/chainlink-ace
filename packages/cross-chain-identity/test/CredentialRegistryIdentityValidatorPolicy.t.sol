@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
+import {IPolicyEngine} from "../../policy-management/src/interfaces/IPolicyEngine.sol";
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidatorPolicy} from "../src/CredentialRegistryIdentityValidatorPolicy.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
+import {Policy} from "../../policy-management/src/core/Policy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
@@ -47,7 +47,7 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
       CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(0)
     );
 
-    s_identityValidatorPolicy = _deployCredentialRegistryCredentialRegistryIdentityValidatorPolicy(
+    s_identityValidatorPolicy = _deployCredentialRegistryIdentityValidatorPolicy(
       address(s_policyEngine), s_owner, abi.encode(credentialSourceInputs, credentialRequirementInputs)
     );
   }
@@ -87,13 +87,15 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
 
   function test_empty_initialization_and_later_configuration_continues() public {
     CredentialRegistryIdentityValidatorPolicy policy =
-      _deployCredentialRegistryCredentialRegistryIdentityValidatorPolicy(address(s_policyEngine), s_owner, "");
+      _deployCredentialRegistryIdentityValidatorPolicy(address(s_policyEngine), s_owner, "");
 
     ICredentialRequirements.CredentialRequirementInput memory credentialRequirementInputs =
       ICredentialRequirements.CredentialRequirementInput(REQUIREMENT_KYC, s_credentials_kyc, 1, false);
 
-    ICredentialRequirements.CredentialSourceInput memory credentialSourceInput = ICredentialRequirements
-      .CredentialSourceInput(CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(0));
+    ICredentialRequirements.CredentialSourceInput memory credentialSourceInput =
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(0)
+      );
 
     policy.addCredentialSource(credentialSourceInput);
     policy.addCredentialRequirement(credentialRequirementInputs);

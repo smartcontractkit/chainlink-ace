@@ -1,6 +1,6 @@
 {
   "name": "@chainlink/ace",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Chainlink Automated Compliance Engine (ACE) Contracts",
   "keywords": [
     "chainlink",
@@ -15,26 +15,30 @@
   "license": "BUSL-1.1",
   "author": "smartcontractkit",
   "scripts": {
-    "build": "forge build --sizes",
+    "build": "forge build",
+    "build:size-check": "forge build --sizes --skip test",
     "clean": "rm -rf cache out",
-    "deploy:token:erc20": "forge script ./script/DeployComplianceTokenERC20.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
-    "deploy:token:erc3643": "forge script ./script/DeployComplianceTokenERC3643.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
-    "deploy:token:simple": "forge script ./script/DeploySimpleComplianceToken.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
+    "deploy:token:erc20": "forge script ./scripts/deploy/DeployComplianceTokenERC20.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
+    "deploy:token:erc3643": "forge script ./scripts/deploy/DeployComplianceTokenERC3643.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
+    "deploy:token:simple": "forge script ./scripts/deploy/DeploySimpleComplianceToken.s.sol --via-ir --broadcast --rpc-url ${RPC_URL:=local}",
     "docs": "forge doc --serve --port 4000",
     "fmt": "forge fmt",
     "fmt:check": "forge fmt --check",
-    "foundryup": "foundryup --version `cat .foundry-version`",
+    "foundryup": "foundryup --install `cat .foundry-version`",
     "lint": "solhint packages/**/*.sol",
     "lint:test": "solhint --config \".solhint-test.json\"  --ignore-path \".solhintignore-test\" packages/**/*.t.sol",
-    "test": "forge test",
-    "test:coverage": "forge coverage",
-    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
+    "test": "FOUNDRY_PROFILE=test forge test",
+    "test:coverage": "FOUNDRY_PROFILE=test forge coverage",
+    "test:coverage:report": "FOUNDRY_PROFILE=test forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
     "wtf": "which forge"
   },
   "devDependencies": {
     "@chainlink/contracts": "1.5.0",
-    "@openzeppelin/contracts": "^5.0.2",
-    "@openzeppelin/contracts-upgradeable": "^5.0.2",
+    "@chainlink/contracts-ccip": "https://github.com/smartcontractkit/chainlink-ccip#4cf4545dc916969ec863da135b534cad4989819b",
+    "@openzeppelin/contracts": "5.4.0",
+    "@openzeppelin/contracts-4.8.3": "npm:@openzeppelin/contracts@4.8.3",
+    "@openzeppelin/contracts-5.3.0": "npm:@openzeppelin/contracts@5.3.0",
+    "@openzeppelin/contracts-upgradeable": "5.4.0",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "solhint": "^5.0.4"
   }

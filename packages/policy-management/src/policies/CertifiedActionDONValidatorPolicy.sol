@@ -5,8 +5,9 @@ import {Policy} from "../core/Policy.sol";
 import {ICertifiedActionValidator} from "../interfaces/ICertifiedActionValidator.sol";
 import {IReceiver} from "@chainlink/contracts/src/v0.8/keystone/interfaces/IReceiver.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {KeystoneFeedDefaultMetadataLib} from
-  "@chainlink/contracts/src/v0.8/keystone/lib/KeystoneFeedDefaultMetadataLib.sol";
+import {
+  KeystoneFeedDefaultMetadataLib
+} from "@chainlink/contracts/src/v0.8/keystone/lib/KeystoneFeedDefaultMetadataLib.sol";
 import {CertifiedActionValidatorPolicy} from "./CertifiedActionValidatorPolicy.sol";
 
 /**
@@ -43,8 +44,16 @@ contract CertifiedActionDONValidatorPolicy is CertifiedActionValidatorPolicy, IR
     }
   }
 
+  /**
+   * @notice Authorize the following configuration functions:
+   * - setKeystoneForwarder
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.setKeystoneForwarder.selector);
+  }
+
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionDONValidatorPolicy 1.0.0";
+    return "CertifiedActionDONValidatorPolicy 1.1.1";
   }
 
   /**
@@ -84,8 +93,8 @@ contract CertifiedActionDONValidatorPolicy is CertifiedActionValidatorPolicy, IR
   }
 
   /// @inheritdoc IERC165
-  function supportsInterface(bytes4 interfaceId) public pure virtual override(IERC165, Policy) returns (bool) {
-    return interfaceId == type(IReceiver).interfaceId || interfaceId == type(IERC165).interfaceId;
+  function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, Policy) returns (bool) {
+    return interfaceId == type(IReceiver).interfaceId || super.supportsInterface(interfaceId);
   }
 
   function _setKeystoneForwarder(address keystoneForwarder) internal {

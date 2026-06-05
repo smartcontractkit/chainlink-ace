@@ -18,3 +18,4 @@ broadcast/*/31337/
 
 release-files.txt
 /gethwrappers/build
+.claude/

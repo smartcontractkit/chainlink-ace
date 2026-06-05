@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {PolicyProtectedUpgradeable} from "../../src/core/PolicyProtectedUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract MockTokenUpgradeable is Initializable, PolicyProtectedUpgradeable {
+contract MockTokenUpgradeable is Initializable, UUPSUpgradeable, PolicyProtectedUpgradeable {
   mapping(address account => uint256 balance) public s_balances;
   uint256 public totalSupply = 0;
   bool public paused;
@@ -18,9 +19,19 @@ contract MockTokenUpgradeable is Initializable, PolicyProtectedUpgradeable {
     _;
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function initialize(address policyEngine) external initializer {
     __PolicyProtected_init(msg.sender, policyEngine);
   }
+
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   function transfer(address to, uint256 amount) external whenNotPaused runPolicy {
     s_balances[to] += amount;
@@ -38,7 +49,16 @@ contract MockTokenUpgradeable is Initializable, PolicyProtectedUpgradeable {
     s_balances[to] += amount;
   }
 
-  function transferFrom(address, /*from*/ address to, uint256 amount) external whenNotPaused runPolicy {
+  function transferFrom(
+    address,
+    /*from*/
+    address to,
+    uint256 amount
+  )
+    external
+    whenNotPaused
+    runPolicy
+  {
     s_balances[to] += amount;
   }
 

@@ -3,9 +3,11 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../../../../policy-management/src/interfaces/IPolicyEngine.sol";
+import {PolicyEngineFactory} from "../../../../policy-management/src/core/PolicyEngineFactory.sol";
+import {PolicyEngine} from "../../../../policy-management/src/core/PolicyEngine.sol";
+import {PolicyFactory} from "../../../../policy-management/src/core/PolicyFactory.sol";
+import {Policy} from "../../../../policy-management/src/core/Policy.sol";
 import {ComplianceTokenERC3643} from "../../src/ComplianceTokenERC3643.sol";
 
 /**
@@ -14,6 +16,14 @@ import {ComplianceTokenERC3643} from "../../src/ComplianceTokenERC3643.sol";
  * @dev Provides helper functions to deploy common ERC-3643 token contracts with proper proxy pattern
  */
 abstract contract BaseProxyTest is Test {
+  PolicyEngineFactory internal s_policyEngineFactory = new PolicyEngineFactory();
+  PolicyFactory internal s_policyFactory = new PolicyFactory();
+
+  PolicyEngine internal s_policyEngineImpl = new PolicyEngine();
+
+  uint256 internal s_policyEngineNonce = 0;
+  uint256 internal s_policyNonce = 0;
+
   /**
    * @notice Deploy PolicyEngine through proxy
    * @param defaultAllow Whether the default policy engine rule will allow or reject the transaction
@@ -21,10 +31,10 @@ abstract contract BaseProxyTest is Test {
    * @return The deployed PolicyEngine proxy instance
    */
   function _deployPolicyEngine(bool defaultAllow, address initialOwner) internal returns (PolicyEngine) {
-    PolicyEngine policyEngineImpl = new PolicyEngine();
-    bytes memory policyEngineData = abi.encodeWithSelector(PolicyEngine.initialize.selector, defaultAllow, initialOwner);
-    ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
-    return PolicyEngine(address(policyEngineProxy));
+    address policyEngine = s_policyEngineFactory.createPolicyEngine(
+      address(s_policyEngineImpl), bytes32(s_policyEngineNonce++), defaultAllow, initialOwner
+    );
+    return PolicyEngine(policyEngine);
   }
 
   /**
@@ -44,9 +54,7 @@ abstract contract BaseProxyTest is Test {
     internal
     returns (address)
   {
-    bytes memory policyData = abi.encodeWithSelector(Policy.initialize.selector, policyEngine, owner, parameters);
-    ERC1967Proxy policyProxy = new ERC1967Proxy(policyImpl, policyData);
-    return address(policyProxy);
+    return s_policyFactory.createPolicy(address(policyImpl), bytes32(s_policyNonce++), policyEngine, owner, parameters);
   }
 
   /**

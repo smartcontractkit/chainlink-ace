@@ -206,7 +206,7 @@ In a realistic scenario, a Sanctions Provider maintains its own sanctions list. 
 
 ```bash
 export ETH_RPC_URL=http://localhost:8545
-PRIVATE_KEY=$SANCTIONS_PROVIDER_PRIVATE_KEY forge script script/getting_started/advanced/DeploySanctionsList.s.sol:DeploySanctionsList \
+PRIVATE_KEY=$SANCTIONS_PROVIDER_PRIVATE_KEY forge script scripts/getting_started/advanced/DeploySanctionsList.s.sol:DeploySanctionsList \
   --rpc-url $ETH_RPC_URL \
   --broadcast
 ```
@@ -223,12 +223,12 @@ The Fund Manager's deployment script will configure the `SanctionsPolicy` to poi
 
 ### Deploy Your Compliance System
 
-Now, let's build the Tokenized MMF. We'll use a [deployment script](../../script/getting_started/advanced/DeployAdvancedGettingStarted.s.sol) specifically created for this more comprehensive scenario.
+Now, let's build the Tokenized MMF. We'll use a [deployment script](../../scripts/getting_started/advanced/DeployAdvancedGettingStarted.s.sol) specifically created for this more comprehensive scenario.
 
 This single command will deploy all the necessary contracts as the Fund Manager, including the MMF token, the Policy Engine, the registries, and all the required policies. The script will configure the system to use the Sanctions List deployed by the Sanctions Provider in the prerequisite step above.
 
 ```bash
-PRIVATE_KEY=$FUND_MANAGER_PRIVATE_KEY forge script script/getting_started/advanced/DeployAdvancedGettingStarted.s.sol:DeployAdvancedGettingStarted \
+PRIVATE_KEY=$FUND_MANAGER_PRIVATE_KEY forge script scripts/getting_started/advanced/DeployAdvancedGettingStarted.s.sol:DeployAdvancedGettingStarted \
   --rpc-url $ETH_RPC_URL \
   --broadcast
 ```
@@ -370,7 +370,7 @@ The same flow occurs: the KYC check passes, but the sanctions check fails. This 
 
 The previous steps worked because of how we wired the components together in the deployment script. Let's break down exactly what happened behind the scenes during the failed transfer to Charlie, from setup to execution.
 
-#### The Setup (from [`DeployAdvancedGettingStarted.s.sol`](../../script/getting_started/advanced/DeployAdvancedGettingStarted.s.sol))
+#### The Setup (from [`DeployAdvancedGettingStarted.s.sol`](../../scripts/getting_started/advanced/DeployAdvancedGettingStarted.s.sol))
 
 Three critical connections were made when you ran the deployment script:
 
@@ -413,7 +413,7 @@ Congratulations! You've successfully deployed a complete, modular compliance sys
 
 The best way to understand how all the components were connected is to review the script you just ran:
 
-- → **[Study the deployment script](../../script/getting_started/advanced/DeployAdvancedGettingStarted.s.sol)**
+- → **[Study the deployment script](../../scripts/getting_started/advanced/DeployAdvancedGettingStarted.s.sol)**
 
 From there, your next step depends on your goal:
 

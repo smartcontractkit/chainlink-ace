@@ -313,6 +313,32 @@ The `OnlyOwnerPolicy` that only allows the policy owner to call the method, simi
 
 - **Restricted Access**: Only allow contract deployer to operate the contract methods.
 
+## OnlySubjectOwnerPolicy
+
+### Overview
+
+The `OnlySubjectOwnerPolicy` that only allows the owner of the contract subject to the policy to call the method. Contract must implement `Ownable` from OpenZeppelin.
+
+### Policy Parameters and Context
+
+| Parameter Name  | Type  | Description                                                                                                                            |
+| --------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| _No parameters_ | _N/A_ | This policy does **not** require any parameters from the Policy Engine's configured Extractor and Mapper. It checks `sender` directly. |
+
+### Policy Behavior
+
+- **`run(...)`**
+
+    - Returns `PolicyResult.Continue` if `sender` is the owner of the contract subject to the policy
+    - Reverts otherwise, including when the contract subject to the policy is not `Ownable`
+
+- **`postRun(...)`**
+    - Not implemented (no state changes required)
+
+### Example Use Cases
+
+- **Restricted Access**: Only allow contract owner to operate the contract methods.
+
 ## PausePolicy
 
 ### Overview
@@ -407,6 +433,10 @@ policy.grantOperationAllowanceToRole(TRANSFER_SELECTOR, ADMIN_ROLE);
 
 A transaction proceeds only if the sender holds a role that has been granted permission for the operation.
 
+**Note**: The initial owner is granted the DEFAULT_ADMIN_ROLE only at policy instance creation time. If the policy owner
+is subsequently transferred, no automatic changes are made to the previous owner roles. If you
+wish to also revoke DEFAULT_ADMIN_ROLE from the previous owner, that must be done manually.
+ 
 ### Specific Configuration
 
 1. **Role-Based Operation Allowance**
@@ -452,6 +482,8 @@ No additional `context` is used or expected.
 ### Overview
 
 The `SecureMintPolicy` ensures the total supply of a token does not exceed the actual reserves of the underlying asset. It retrieves reserves data from a Chainlink Proof of Reserve contract (or any contract compatible with the Data Feed interface) and compares it against the total supply of the token.
+
+Important Note: A single instance of this policy can only project a single subject/token.
 
 ### Specific Configuration
 
@@ -581,6 +613,9 @@ VolumeRatePolicy policy = new VolumeRatePolicy(
     1000      // Max amount per period
 );
 ```
+
+Important Note: Usage tracking is recorded separately for each subject but the policy configuration applies to
+all subjects for which the policy has been added.
 
 ### Specific Configuration
 

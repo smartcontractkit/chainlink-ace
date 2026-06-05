@@ -30,6 +30,22 @@ The Policy Management architecture is designed to be as flexible and decoupled a
 
 - **`Policy`**: A modular rule. Each policy is a small, focused contract with a `run()` function that receives parameters and returns a verdict. This is where your specific business or compliance logic lives. The `Policy` can also have an optional `postRun()` function for state changes.
 
+### PolicyProtected Variants
+There are several variants of `PolicyProtected` to provide flexibility in integrating with various projects and contracts:
+
+- **`PolicyProtectedBase`**: Non-upgradeable, with no authorization mechanism and requires a PolicyEngine be provided at deployment time and can never run without a PolicyEngine.
+
+- **`PolicyProtected`**: Non-upgradeable, authorization via OpenZeppelin `Ownable` and requires a PolicyEngine be provided at deployment time and can never run without a PolicyEngine.
+
+- **`PolicyProtectedFlexible`**: Non-upgradeable, with no authorization mechanism and does not require a PolicyEngine be provided at deployment time and can run without a PolicyEngine where all methods (even those using the `runPolicy` modifier) will not be reverted if no PolicyEngine is attached. A PolicyEngine can later be attached via `attachPolicyEngine()`, and then any functions with `runPolicy` can be protected by the newly attached PolicyEngine.
+
+- **`PolicyProtectedBaseUpgradeable`**: Upgrade-compatible with ERC-7201 namespaced storage, with no authorization mechanism and requires a PolicyEngine be provided at deployment time and can never run without a PolicyEngine.
+
+- **`PolicyProtectedUpgradeable`**: Upgrade-compatible with ERC-7201 namespaced storage, authorization via OpenZeppelin `OwnableUpgradeable` and requires a PolicyEngine be provided at deployment time and can never run without a PolicyEngine.
+
+- **`PolicyProtectedFlexibleUpgradeable`**: Upgrade-compatible with ERC-7201 namespaced storage, with no authorization mechanism and does not require a PolicyEngine be provided at deployment time and can run without a PolicyEngine where all methods (even those using the `runPolicy` modifier) will not be reverted if no PolicyEngine is attached. A PolicyEngine can later be attached via `attachPolicyEngine()`, and then any functions with `runPolicy` can be protected by the newly attached PolicyEngine.
+
+
 ### The Policy Flow: A Step-by-Step Breakdown
 
 The heart of the Policy Management component is the "chain of responsibility" pattern, where a transaction is passed through a series of checks before it is allowed to execute.

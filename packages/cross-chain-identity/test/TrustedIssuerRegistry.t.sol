@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {ITrustedIssuerRegistry} from "../src/interfaces/ITrustedIssuerRegistry.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {TrustedIssuerRegistry} from "../src/TrustedIssuerRegistry.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
+import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract TrustedIssuerRegistryTest is BaseProxyTest {

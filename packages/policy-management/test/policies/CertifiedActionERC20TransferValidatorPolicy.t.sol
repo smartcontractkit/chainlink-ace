@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {ICertifiedActionValidator} from "@chainlink/policy-management/interfaces/ICertifiedActionValidator.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ICertifiedActionValidator} from "../../src/interfaces/ICertifiedActionValidator.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {CertifiedActionValidatorPolicy} from "@chainlink/policy-management/policies/CertifiedActionValidatorPolicy.sol";
-import {CertifiedActionERC20TransferValidatorPolicy} from
-  "@chainlink/policy-management/policies/CertifiedActionERC20TransferValidatorPolicy.sol";
+import {Policy} from "../../src/core/Policy.sol";
+import {CertifiedActionValidatorPolicy} from "../../src/policies/CertifiedActionValidatorPolicy.sol";
+import {
+  CertifiedActionERC20TransferValidatorPolicy
+} from "../../src/policies/CertifiedActionERC20TransferValidatorPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {MockTokenExtractor} from "../helpers/MockTokenExtractor.sol";
 import {BaseCertifiedActionTest} from "../helpers/BaseCertifiedActionTest.sol";
@@ -149,7 +150,7 @@ contract CertifiedActionERC20TransferValidatorPolicyTest is BaseCertifiedActionT
 
     _expectRejectedRevert(
       address(policy),
-      "no valid permit found",
+      "no valid pre-presented permit found",
       MockTokenUpgradeable.transfer.selector,
       deployer,
       abi.encode(recipient, 100)

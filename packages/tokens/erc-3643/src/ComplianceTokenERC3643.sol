@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
+import {IPolicyEngine} from "../../../policy-management/src/interfaces/IPolicyEngine.sol";
 import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
 import {IIdentityRegistry} from "../../../vendor/erc-3643/registry/interface/IIdentityRegistry.sol";
 import {IModularCompliance} from "../../../vendor/erc-3643/compliance/modular/IModularCompliance.sol";
 import {ComplianceTokenStoreERC3643} from "./ComplianceTokenStoreERC3643.sol";
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PolicyProtectedUpgradeable} from "../../../policy-management/src/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, ComplianceTokenStoreERC3643, IToken {
-  string private constant TOKEN_VERSION = "1.0.0";
+contract ComplianceTokenERC3643 is PolicyProtectedUpgradeable, UUPSUpgradeable, ComplianceTokenStoreERC3643, IToken {
+  string internal constant TOKEN_VERSION = "1.1.1";
 
   /// modifiers
 
@@ -20,6 +21,12 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
   }
 
   error LengthMismatch();
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
 
   /**
    * @dev Initializes the contract with the provided token metadata and assigns policy engine.
@@ -80,6 +87,10 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
     $.tokenSymbol = tokenSymbol;
     $.tokenDecimals = tokenDecimals;
   }
+
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /**
    *  @dev See {IERC20-approve}.
@@ -149,7 +160,13 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    *  @dev See {IToken-setOnchainID}.
    *  if _onchainID is set at zero address it means no ONCHAINID is bound to this token
    */
-  function setOnchainID(address /*_onchainID*/ ) external pure override {
+  function setOnchainID(
+    address /*_onchainID*/
+  )
+    external
+    pure
+    override
+  {
     revert("Not implemented");
   }
 
@@ -172,10 +189,13 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
   /**
    *  @dev See {IToken-batchTransfer}.
    */
-  function batchTransfer(address[] calldata _toList, uint256[] calldata _amounts) external override {
+  function batchTransfer(address[] calldata _toList, uint256[] calldata _amounts) external override whenNotPaused {
     if (_toList.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _toList.length; i++) {
-      transfer(_toList[i], _amounts[i]);
+      _checkTransfer(_toList[i], _amounts[i]);
+      _requirePolicyRun(this.transfer.selector, abi.encode(_toList[i], _amounts[i]));
+      _transfer(msg.sender, _toList[i], _amounts[i]);
     }
   }
 
@@ -212,6 +232,8 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
 
   /**
    *  @dev See {IToken-batchForcedTransfer}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
   function batchForcedTransfer(
     address[] calldata _fromList,
@@ -222,58 +244,86 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
     override
   {
     if (_fromList.length != _toList.length || _toList.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _fromList.length; i++) {
-      forcedTransfer(_fromList[i], _toList[i], _amounts[i]);
+      _requirePolicyRun(this.forcedTransfer.selector, abi.encode(_fromList[i], _toList[i], _amounts[i]));
+      _forcedTransfer(_fromList[i], _toList[i], _amounts[i]);
     }
   }
 
   /**
    *  @dev See {IToken-batchMint}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
   function batchMint(address[] calldata _toList, uint256[] calldata _amounts) external override {
     if (_toList.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _toList.length; i++) {
-      mint(_toList[i], _amounts[i]);
+      _requirePolicyRun(this.mint.selector, abi.encode(_toList[i], _amounts[i]));
+      _mint(_toList[i], _amounts[i]);
     }
   }
 
   /**
    *  @dev See {IToken-batchBurn}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
   function batchBurn(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
-      burn(_userAddresses[i], _amounts[i]);
+      _requirePolicyRun(this.burn.selector, abi.encode(_userAddresses[i], _amounts[i]));
+      _burn(_userAddresses[i], _amounts[i]);
     }
   }
 
   /**
    *  @dev See {IToken-batchSetAddressFrozen}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
-  function batchSetAddressFrozen(address[] calldata _userAddresses, bool[] calldata _freeze) external override {
-    if (_userAddresses.length != _freeze.length) revert LengthMismatch();
+  function batchSetAddressFrozen(address[] calldata _userAddresses, bool[] calldata _freezes) external override {
+    if (_userAddresses.length != _freezes.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
-      setAddressFrozen(_userAddresses[i], _freeze[i]);
+      _requirePolicyRun(this.setAddressFrozen.selector, abi.encode(_userAddresses[i], _freezes[i]));
+      _setAddressFrozen(_userAddresses[i], _freezes[i]);
     }
   }
 
   /**
    *  @dev See {IToken-batchFreezePartialTokens}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
   function batchFreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
-      freezePartialTokens(_userAddresses[i], _amounts[i]);
+      _requirePolicyRun(this.freezePartialTokens.selector, abi.encode(_userAddresses[i], _amounts[i]));
+      _freezePartialTokens(_userAddresses[i], _amounts[i]);
     }
   }
 
   /**
    *  @dev See {IToken-batchUnfreezePartialTokens}.
+   *  @notice This function runs the attached PolicyEngine for each item in the batch as if the non-batch
+   *          function was invoked separately for each item.
    */
-  function batchUnfreezePartialTokens(address[] calldata _userAddresses, uint256[] calldata _amounts) external override {
+  function batchUnfreezePartialTokens(
+    address[] calldata _userAddresses,
+    uint256[] calldata _amounts
+  )
+    external
+    override
+  {
     if (_userAddresses.length != _amounts.length) revert LengthMismatch();
+    _requirePolicyEngine();
     for (uint256 i = 0; i < _userAddresses.length; i++) {
-      unfreezePartialTokens(_userAddresses[i], _amounts[i]);
+      _requirePolicyRun(this.unfreezePartialTokens.selector, abi.encode(_userAddresses[i], _amounts[i]));
+      _unfreezePartialTokens(_userAddresses[i], _amounts[i]);
     }
   }
 
@@ -387,10 +437,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    *  @return `true` if successful and revert if unsuccessful
    */
   function transfer(address _to, uint256 _amount) public override whenNotPaused runPolicy returns (bool) {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    require(!$.frozen[_to] && !$.frozen[msg.sender], "wallet is frozen");
-    require(_amount <= $.balances[msg.sender] - ($.frozenTokens[msg.sender]), "Insufficient Balance");
+    _checkTransfer(_to, _amount);
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -399,17 +446,7 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    *  @dev See {IToken-forcedTransfer}.
    */
   function forcedTransfer(address _from, address _to, uint256 _amount) public override runPolicy returns (bool) {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    require($.balances[_from] >= _amount, "sender balance too low");
-    uint256 freeBalance = $.balances[_from] - ($.frozenTokens[_from]);
-    if (_amount > freeBalance) {
-      uint256 tokensToUnfreeze = _amount - (freeBalance);
-      $.frozenTokens[_from] = $.frozenTokens[_from] - (tokensToUnfreeze);
-      emit TokensUnfrozen(_from, tokensToUnfreeze);
-    }
-    _transfer(_from, _to, _amount);
-    return true;
+    return _forcedTransfer(_from, _to, _amount);
   }
 
   /**
@@ -423,15 +460,6 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    * @dev Burns tokens from a specified address as defined by the ERC-3643 IToken interface.
    */
   function burn(address _userAddress, uint256 _amount) public override runPolicy {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    require($.balances[_userAddress] >= _amount, "cannot burn more than balance");
-    uint256 freeBalance = $.balances[_userAddress] - $.frozenTokens[_userAddress];
-    if (_amount > freeBalance) {
-      uint256 tokensToUnfreeze = _amount - (freeBalance);
-      $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] - (tokensToUnfreeze);
-      emit TokensUnfrozen(_userAddress, tokensToUnfreeze);
-    }
     _burn(_userAddress, _amount);
   }
 
@@ -439,46 +467,46 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
    *  @dev See {IToken-setAddressFrozen}.
    */
   function setAddressFrozen(address _userAddress, bool _freeze) public override runPolicy {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    $.frozen[_userAddress] = _freeze;
-    emit AddressFrozen(_userAddress, _freeze, msg.sender);
+    _setAddressFrozen(_userAddress, _freeze);
   }
 
   /**
    *  @dev See {IToken-freezePartialTokens}.
    */
   function freezePartialTokens(address _userAddress, uint256 _amount) public override runPolicy {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    uint256 balance = $.balances[_userAddress];
-    require(balance >= $.frozenTokens[_userAddress] + _amount, "Amount exceeds available balance");
-    $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] + (_amount);
-    emit TokensFrozen(_userAddress, _amount);
+    _freezePartialTokens(_userAddress, _amount);
   }
 
   /**
    *  @dev See {IToken-unfreezePartialTokens}.
    */
   function unfreezePartialTokens(address _userAddress, uint256 _amount) public override runPolicy {
-    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
-
-    require($.frozenTokens[_userAddress] >= _amount, "Amount should be less than or equal to frozen tokens");
-    $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] - (_amount);
-    emit TokensUnfrozen(_userAddress, _amount);
+    _unfreezePartialTokens(_userAddress, _amount);
   }
 
   /**
    *  @dev See {IToken-setIdentityRegistry}.
    */
-  function setIdentityRegistry(address /*_identityRegistry*/ ) public pure override {
+  function setIdentityRegistry(
+    address /*_identityRegistry*/
+  )
+    public
+    pure
+    override
+  {
     revert("Not implemented");
   }
 
   /**
    *  @dev See {IToken-setCompliance}.
    */
-  function setCompliance(address /*_compliance*/ ) public pure override {
+  function setCompliance(
+    address /*_compliance*/
+  )
+    public
+    pure
+    override
+  {
     revert("Not implemented");
   }
 
@@ -491,6 +519,69 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
 
   function getCCIPAdmin() public view virtual returns (address) {
     return owner();
+  }
+
+  /**
+   * @dev Ensure a policy engine is attached
+   */
+  function _requirePolicyEngine() internal view virtual {
+    if (address(getPolicyEngine()) == address(0)) {
+      revert IPolicyEngine.PolicyEngineUndefined();
+    }
+  }
+
+  /**
+   * @dev Perform a policy engine run for specific selector/calldata. Useful to assist batch operations
+   * running the policy engine on each underlying item in the batch.
+   */
+  function _requirePolicyRun(bytes4 selector, bytes memory data) internal virtual {
+    IPolicyEngine(getPolicyEngine())
+      .run(IPolicyEngine.Payload({selector: selector, sender: msg.sender, data: data, context: ""}));
+  }
+
+  function _checkTransfer(address _to, uint256 _amount) internal virtual {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    require(!$.frozen[_to] && !$.frozen[msg.sender], "wallet is frozen");
+    require(_amount <= $.balances[msg.sender] - ($.frozenTokens[msg.sender]), "Insufficient Balance");
+  }
+
+  function _setAddressFrozen(address _userAddress, bool _freeze) internal virtual {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    $.frozen[_userAddress] = _freeze;
+    emit AddressFrozen(_userAddress, _freeze, msg.sender);
+  }
+
+  function _freezePartialTokens(address _userAddress, uint256 _amount) internal virtual {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    uint256 balance = $.balances[_userAddress];
+    require(balance >= $.frozenTokens[_userAddress] + _amount, "Amount exceeds available balance");
+    $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] + (_amount);
+    emit TokensFrozen(_userAddress, _amount);
+  }
+
+  function _unfreezePartialTokens(address _userAddress, uint256 _amount) internal virtual {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    require($.frozenTokens[_userAddress] >= _amount, "Amount should be less than or equal to frozen tokens");
+    $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] - (_amount);
+    emit TokensUnfrozen(_userAddress, _amount);
+  }
+
+  function _forcedTransfer(address _from, address _to, uint256 _amount) internal virtual returns (bool) {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    require($.balances[_from] >= _amount, "sender balance too low");
+    uint256 freeBalance = $.balances[_from] - ($.frozenTokens[_from]);
+    if (_amount > freeBalance) {
+      uint256 tokensToUnfreeze = _amount - (freeBalance);
+      $.frozenTokens[_from] = $.frozenTokens[_from] - (tokensToUnfreeze);
+      emit TokensUnfrozen(_from, tokensToUnfreeze);
+    }
+    _transfer(_from, _to, _amount);
+    return true;
   }
 
   /**
@@ -531,6 +622,14 @@ contract ComplianceTokenERC3643 is Initializable, PolicyProtectedUpgradeable, Co
     require(_userAddress != address(0), "ERC20: burn from the zero address");
 
     ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+
+    require($.balances[_userAddress] >= _amount, "cannot burn more than balance");
+    uint256 freeBalance = $.balances[_userAddress] - $.frozenTokens[_userAddress];
+    if (_amount > freeBalance) {
+      uint256 tokensToUnfreeze = _amount - (freeBalance);
+      $.frozenTokens[_userAddress] = $.frozenTokens[_userAddress] - (tokensToUnfreeze);
+      emit TokensUnfrozen(_userAddress, tokensToUnfreeze);
+    }
 
     _beforeTokenTransfer(_userAddress, address(0), _amount);
 
