@@ -5,7 +5,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 
 contract FaultyPolicyEngine is IPolicyEngine {
   function typeAndVersion() external pure override returns (string memory) {
-    return "FaultyPolicyEngine 1.0.0";
+    return "FaultyPolicyEngine 1.1.1";
   }
 
   function attach() external override {}
@@ -43,6 +43,8 @@ contract FaultyPolicyEngine is IPolicyEngine {
   function getPolicyConfigVersion(address) external view override returns (uint256) {
     return 0;
   }
+
+  function upgradePolicy(address, address, bytes calldata) external override {}
 
   function setDefaultPolicyAllow(bool) external override {}
 

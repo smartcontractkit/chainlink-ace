@@ -3,12 +3,10 @@ pragma solidity ^0.8.20;
 
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
 import {ICredentialRegistry} from "../src/interfaces/ICredentialRegistry.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidator} from "../src/CredentialRegistryIdentityValidator.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {MockCredentialDataValidator} from "./helpers/MockCredentialDataValidator.sol";
+import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 
 contract CredentialRegistryIdentityValidatorTest is BaseProxyTest {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
+import {PolicyProtected} from "../../src/core/PolicyProtected.sol";
 
 contract MockToken is PolicyProtected {
   mapping(address account => uint256 balance) public s_balances;
@@ -35,7 +35,16 @@ contract MockToken is PolicyProtected {
     s_balances[to] += amount;
   }
 
-  function transferFrom(address, /*from*/ address to, uint256 amount) external whenNotPaused runPolicy {
+  function transferFrom(
+    address,
+    /*from*/
+    address to,
+    uint256 amount
+  )
+    external
+    whenNotPaused
+    runPolicy
+  {
     s_balances[to] += amount;
   }
 

@@ -309,6 +309,14 @@ interface IPolicyEngine {
   function getPolicyConfigVersion(address policy) external view returns (uint256);
 
   /**
+   * @notice Upgrades the policy to a new implementation, if the policy is upgradeable.
+   * @param policy The address of the policy.
+   * @param newImplementation The address of the new implementation.
+   * @param data Data to pass to the upgrade.
+   */
+  function upgradePolicy(address policy, address newImplementation, bytes calldata data) external;
+
+  /**
    * @notice Sets whether to allow or reject the transaction if no policy explicitly returns an Allow or a Reject.
    * @param defaultAllow Indicates whether to allow or reject a transaction if no policy explicitly returns an Allow
    * or a Reject. True to allow, false to reject.

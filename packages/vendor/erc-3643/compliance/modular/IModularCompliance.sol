@@ -63,7 +63,6 @@ pragma solidity ^0.8.23;
 
 interface IModularCompliance {
   /// events
-
   /**
    *  @dev Event emitted for each executed interaction with a module contract.
    *  For gas efficiency, only the interaction calldata selector (first 4

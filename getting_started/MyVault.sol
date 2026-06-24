@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
-import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {PolicyProtectedUpgradeable} from "../packages/policy-management/src/core/PolicyProtectedUpgradeable.sol";
 
 /**
  * @title MyVault

@@ -5,7 +5,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract PolicyFailingRun is Policy {
-  string public constant override typeAndVersion = "PolicyFailingRun 1.0.0";
+  string public constant override typeAndVersion = "PolicyFailingRun 1.1.1";
 
   function run(
     address,

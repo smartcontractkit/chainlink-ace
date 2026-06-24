@@ -2,9 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
+import {IPolicyEngine, PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {OnlyOwnerPolicy} from "../../src/policies/OnlyOwnerPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
 
 contract OnlyOwnerPolicyTest is BaseProxyTest {
   PolicyEngine public policyEngine;
@@ -47,5 +48,24 @@ contract OnlyOwnerPolicyTest is BaseProxyTest {
       abi.encode(recipient, 100)
     );
     token.transfer(recipient, 100);
+  }
+
+  function test_misconfiguration_failure() public {
+    vm.startPrank(deployer);
+    ERC3643MintBurnExtractor mintBurnExtractor = new ERC3643MintBurnExtractor();
+    bytes32[] memory burnPolicyParams = new bytes32[](1);
+    burnPolicyParams[0] = mintBurnExtractor.PARAM_ACCOUNT();
+    policyEngine.setExtractor(MockTokenUpgradeable.burn.selector, address(mintBurnExtractor));
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.burn.selector, address(policy), burnPolicyParams);
+
+    IPolicyEngine.Payload memory payload = IPolicyEngine.Payload({
+      selector: MockTokenUpgradeable.burn.selector,
+      sender: deployer,
+      data: abi.encode(account, 100),
+      context: new bytes(0)
+    });
+    bytes memory error = abi.encodeWithSignature("InvalidParameters(string)", "expected 0 parameters");
+    _expectRunError(address(policy), error, payload);
+    token.burn(account, 100);
   }
 }

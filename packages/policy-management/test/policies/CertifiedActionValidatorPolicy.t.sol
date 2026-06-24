@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {ICertifiedActionValidator} from "@chainlink/policy-management/interfaces/ICertifiedActionValidator.sol";
-import {CertifiedActionValidatorPolicy} from "@chainlink/policy-management/policies/CertifiedActionValidatorPolicy.sol";
+import {PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ICertifiedActionValidator} from "../../src/interfaces/ICertifiedActionValidator.sol";
+import {CertifiedActionValidatorPolicy} from "../../src/policies/CertifiedActionValidatorPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
 import {MockTokenExtractor} from "../helpers/MockTokenExtractor.sol";
 import {BaseCertifiedActionTest} from "../helpers/BaseCertifiedActionTest.sol";
@@ -173,7 +173,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
 
     _expectRejectedRevert(
       address(policy),
-      "no valid permit found",
+      "no valid pre-presented permit found",
       MockTokenUpgradeable.transfer.selector,
       deployer,
       abi.encode(recipient, 99)
@@ -200,45 +200,6 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
       abi.encodeWithSelector(MockCertifiedActionValidatorPolicyExtension.validatePrePresentedPermitHook.selector)
     );
     token.pause();
-  }
-
-  function test_preActionPermit_prePresentedPermitHookCalledWithContext_succeeds() public {
-    vm.startPrank(deployer);
-
-    token = MockTokenUpgradeable(_deployMockToken(address(policyEngine)));
-
-    MockCertifiedActionValidatorPolicyExtension policyImpl = new MockCertifiedActionValidatorPolicyExtension();
-
-    policy = CertifiedActionValidatorPolicy(_deployPolicy(address(policyImpl), address(policyEngine), deployer, ""));
-    policy.allowIssuer(abi.encode(signer));
-
-    MockTokenExtractor extractor = new MockTokenExtractor();
-    bytes32[] memory parameterOutputFormat = new bytes32[](3);
-    parameterOutputFormat[0] = extractor.PARAM_FROM();
-    parameterOutputFormat[1] = extractor.PARAM_TO();
-    parameterOutputFormat[2] = extractor.PARAM_AMOUNT();
-
-    policyEngine.setExtractor(MockTokenUpgradeable.transferWithContext.selector, address(extractor));
-    policyEngine.addPolicy(
-      address(token), MockTokenUpgradeable.transferWithContext.selector, address(policy), parameterOutputFormat
-    );
-
-    bytes[] memory params = new bytes[](3);
-    params[0] = abi.encode(deployer);
-    params[1] = abi.encode(recipient);
-    params[2] = abi.encode(uint256(100));
-    ICertifiedActionValidator.Permit memory permit =
-      _generatePermit(deployer, address(token), MockTokenUpgradeable.transferWithContext.selector, params);
-
-    bytes memory signature = _signPermit(policy, permit, signerKey);
-
-    // pre-present the permit, so the _validatePrePresentedPermitHook is called even it goes through contextual path
-    policy.present(permit, signature);
-    vm.expectCall(
-      address(policy),
-      abi.encodeWithSelector(MockCertifiedActionValidatorPolicyExtension.validatePrePresentedPermitHook.selector)
-    );
-    token.transferWithContext(recipient, 100, abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature)));
   }
 
   function test_preActionPermit_overrideContextPermits() public {
@@ -284,17 +245,12 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     vm.assertEq(token.balanceOf(recipient), 300);
     vm.assertEq(policy.getUsage(prePresentedPermit.permitId), 1);
 
-    // transfer with context permits - fails
-    bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(contextPermit1, contextPermit1Signature));
-    _expectRejectedRevert(
-      address(policy),
-      "no valid pre-presented permit found",
-      MockTokenUpgradeable.transferWithContext.selector,
-      deployer,
-      abi.encode(recipient, 100, context),
-      context
+    // transfer with context permit - allowed as context permit has higher maxUses
+    token.transferWithContext(
+      recipient, 100, abi.encode(ICertifiedActionValidator.SignedPermit(contextPermit1, contextPermit1Signature))
     );
-    token.transferWithContext(recipient, 100, context);
+    vm.assertEq(token.balanceOf(recipient), 400);
+    vm.assertEq(policy.getUsage(contextPermit1.permitId), 2);
   }
 
   function test_preActionPermit_overrideOldPermits() public {
@@ -391,7 +347,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -423,7 +379,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -448,7 +404,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 99, context),
@@ -498,7 +454,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
 
     _expectRejectedRevert(
       address(policy),
-      "no valid permit found",
+      "no valid pre-presented permit found",
       MockTokenUpgradeable.transfer.selector,
       deployer,
       abi.encode(recipient, 100)
@@ -556,7 +512,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     policy.present(permit2, signature2);
   }
 
-  function test__security_presentUsedPermit_usageCountIsNotReset() public {
+  function test__security_mixedUseAccounting_succeeds() public {
     vm.startPrank(deployer);
 
     bytes[] memory params = new bytes[](3);
@@ -566,7 +522,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
 
     ICertifiedActionValidator.Permit memory permit =
       _generatePermit(deployer, address(token), MockTokenUpgradeable.transferWithContext.selector, params);
-    permit.maxUses = 1;
+    permit.maxUses = 2;
 
     bytes memory signature = _signPermit(policy, permit, signerKey);
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
@@ -575,20 +531,13 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     token.transferWithContext(recipient, 100, context);
     vm.assertEq(policy.getUsage(permit.permitId), 1);
 
-    // Present the permit
+    // Present the permit, make sure current usage remains
     policy.present(permit, signature);
     vm.assertEq(policy.getUsage(permit.permitId), 1);
 
-    // use the permit again - should fail
-    _expectRejectedRevert(
-      address(policy),
-      "no valid pre-presented permit found",
-      MockTokenUpgradeable.transferWithContext.selector,
-      deployer,
-      abi.encode(recipient, 100, context),
-      context
-    );
-    token.transferWithContext(recipient, 100, context);
+    // second permit usage via pre-presented (empty context) permit works
+    token.transferWithContext(recipient, 100, "");
+    vm.assertEq(policy.getUsage(permit.permitId), 2);
   }
 
   function test__security_presentRevokedPermit_rejects() public {
@@ -679,7 +628,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -758,7 +707,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -802,7 +751,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -883,7 +832,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
     _expectRejectedRevert(
       address(policy),
-      "invalid signed permit in context",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -1012,7 +961,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     // transfer with pre-presented permit - already exhausted
     _expectRejectedRevert(
       address(policy),
-      "no valid pre-presented permit found",
+      "contextual permit is invalid",
       MockTokenUpgradeable.transferWithContext.selector,
       deployer,
       abi.encode(recipient, 100, context),
@@ -1021,7 +970,7 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     token.transferWithContext(recipient, 100, context);
   }
 
-  function test_security_prioritizePrePresentedPermit_incrementsUsageCorrectly() public {
+  function test_security_prioritizeContextPermit_incrementsUsageCorrectly() public {
     vm.startPrank(deployer);
 
     bytes[] memory params = new bytes[](3);
@@ -1043,12 +992,13 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     // present pre-presented permit
     policy.present(prePresentedPermit, prePresentedPermitSignature);
 
-    // submit context permit - should ignore context permit and use pre-presented permit
+    // submit context permit - should ignore pre-presented permit and use context permit
     token.transferWithContext(
       recipient, 100, abi.encode(ICertifiedActionValidator.SignedPermit(contextPermit, contextPermitSignature))
     );
     vm.assertEq(token.balanceOf(recipient), 100);
-    vm.assertEq(policy.getUsage(prePresentedPermit.permitId), 1);
+    vm.assertEq(policy.getUsage(prePresentedPermit.permitId), 0);
+    vm.assertEq(policy.getUsage(contextPermit.permitId), 1);
   }
 
   function test_check_validSignature_returnsTrue() public {
@@ -1079,5 +1029,53 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     bytes memory signature2 = _signPermit(policy, permit2, signerKey);
 
     vm.assertEq(policy.check(permit1, signature2), false);
+  }
+
+  function test_present_expiredPermit_revert() public {
+    vm.warp(1 days); // ensure block.timestamp is well past 0 so we can set a past expiry
+    vm.startPrank(deployer);
+
+    bytes[] memory params = new bytes[](3);
+    params[0] = abi.encode(deployer);
+    params[1] = abi.encode(recipient);
+    params[2] = abi.encode(uint256(100));
+
+    ICertifiedActionValidator.Permit memory permit =
+      _generatePermit(deployer, address(token), MockTokenUpgradeable.transfer.selector, params);
+    permit.expiry = uint48(block.timestamp - 1); // one second in the past
+
+    bytes memory signature = _signPermit(policy, permit, signerKey);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(ICertifiedActionValidator.PermitExpired.selector, permit.permitId, permit.expiry)
+    );
+    policy.present(permit, signature);
+  }
+
+  function test_present_usageExceededPermit_revert() public {
+    vm.startPrank(deployer);
+
+    bytes[] memory params = new bytes[](3);
+    params[0] = abi.encode(deployer);
+    params[1] = abi.encode(recipient);
+    params[2] = abi.encode(uint256(100));
+
+    ICertifiedActionValidator.Permit memory permit =
+      _generatePermit(deployer, address(token), MockTokenUpgradeable.transferWithContext.selector, params);
+    permit.maxUses = 2;
+
+    bytes memory signature = _signPermit(policy, permit, signerKey);
+    bytes memory context = abi.encode(ICertifiedActionValidator.SignedPermit(permit, signature));
+
+    // exhaust the single allowed use via the contextual path
+    token.transferWithContext(recipient, 100, context);
+    token.transferWithContext(recipient, 100, context);
+    vm.assertEq(policy.getUsage(permit.permitId), 2);
+
+    // re-presenting now should fail: stored uses (2) >= permit.maxUses (2)
+    vm.expectRevert(
+      abi.encodeWithSelector(ICertifiedActionValidator.PermitAlreadyUsed.selector, permit.permitId, permit.maxUses)
+    );
+    policy.present(permit, signature);
   }
 }

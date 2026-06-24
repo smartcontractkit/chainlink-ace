@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.20;
+
+import {PolicyProtectedFlexible} from "../../src/core/PolicyProtectedFlexible.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MockTokenFlexible is Ownable, PolicyProtectedFlexible {
+  mapping(address account => uint256 balance) public s_balances;
+  uint256 public totalSupply = 0;
+  bool public paused;
+
+  error Paused();
+
+  modifier whenNotPaused() {
+    if (paused) {
+      revert Paused();
+    }
+    _;
+  }
+
+  constructor(address policyEngine) Ownable(msg.sender) PolicyProtectedFlexible(policyEngine) {}
+
+  function _authorizeAttachPolicyEngine(address policyEngine) internal override onlyOwner {}
+
+  function transfer(address to, uint256 amount) external whenNotPaused runPolicy {
+    s_balances[to] += amount;
+  }
+
+  function transferWithContext(
+    address to,
+    uint256 amount,
+    bytes calldata context
+  )
+    external
+    whenNotPaused
+    runPolicyWithContext(context)
+  {
+    s_balances[to] += amount;
+  }
+
+  function transferFrom(
+    address,
+    /*from*/
+    address to,
+    uint256 amount
+  )
+    external
+    whenNotPaused
+    runPolicy
+  {
+    s_balances[to] += amount;
+  }
+
+  function balanceOf(address account) external view returns (uint256) {
+    return s_balances[account];
+  }
+
+  function mint(address to, uint256 amount) external whenNotPaused runPolicy {
+    s_balances[to] += amount;
+    totalSupply += amount;
+  }
+
+  function burn(address to, uint256 amount) external whenNotPaused runPolicy {
+    s_balances[to] -= amount;
+    totalSupply -= amount;
+  }
+
+  function pause() external runPolicy {
+    paused = true;
+  }
+
+  function unpause() external runPolicy {
+    paused = false;
+  }
+}

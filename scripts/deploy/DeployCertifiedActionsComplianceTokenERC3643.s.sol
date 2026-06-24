@@ -2,15 +2,15 @@
 pragma solidity 0.8.26;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {ComplianceTokenERC3643} from "../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
+import {IPolicyEngine} from "../../packages/policy-management/src/interfaces/IPolicyEngine.sol";
+import {ComplianceTokenERC3643} from "../../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol";
+import {PolicyEngine} from "../../packages/policy-management/src/core/PolicyEngine.sol";
+import {Policy} from "../../packages/policy-management/src/core/Policy.sol";
+import {OnlyOwnerPolicy} from "../../packages/policy-management/src/policies/OnlyOwnerPolicy.sol";
 import {CertifiedActionDONValidatorPolicy} from
-  "@chainlink/policy-management/policies/CertifiedActionDONValidatorPolicy.sol";
-import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+  "../../packages/policy-management/src/policies/CertifiedActionDONValidatorPolicy.sol";
+import {ICredentialRequirements} from "../../packages/cross-chain-identity/src/interfaces/ICredentialRequirements.sol";
+import {ERC20TransferExtractor} from "../../packages/policy-management/src/extractors/ERC20TransferExtractor.sol";
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 
@@ -48,6 +48,9 @@ contract DeployCertifiedActionsComplianceTokenERC3643 is Script {
     OnlyOwnerPolicy tokenOnlyOwnerPolicy = OnlyOwnerPolicy(address(tokenOnlyOwnerPolicyProxy));
     policyEngine.addPolicy(
       address(token), ComplianceTokenERC3643.mint.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+    );
+    policyEngine.addPolicy(
+      address(token), ComplianceTokenERC3643.burn.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
     policyEngine.addPolicy(
       address(token), ComplianceTokenERC3643.pause.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)

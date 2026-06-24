@@ -7,7 +7,6 @@ import {MaxPolicy} from "../src/policies/MaxPolicy.sol";
 import {MockTokenExtractor} from "./helpers/MockTokenExtractor.sol";
 import {MockTokenUpgradeable} from "./helpers/MockTokenUpgradeable.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {FaultyPolicyEngine} from "./helpers/FaultyPolicyEngine.sol";
 
 contract PolicyProtectedUpgradeableTest is BaseProxyTest {
@@ -49,11 +48,11 @@ contract PolicyProtectedUpgradeableTest is BaseProxyTest {
     PolicyEngine newEngine = _deployPolicyEngine(true, address(this));
 
     vm.expectEmit();
-    emit IPolicyEngine.TargetDetached(address(token));
-    vm.expectEmit();
     emit IPolicyEngine.TargetAttached(address(token));
     vm.expectEmit();
     emit IPolicyProtected.PolicyEngineAttached(address(newEngine));
+    vm.expectEmit();
+    emit IPolicyEngine.TargetDetached(address(token));
 
     token.attachPolicyEngine(address(newEngine));
   }
@@ -112,14 +111,14 @@ contract PolicyProtectedUpgradeableTest is BaseProxyTest {
     FaultyPolicyEngine faultyPolicyEngine = new FaultyPolicyEngine();
     token.attachPolicyEngine(address(faultyPolicyEngine));
 
+    vm.expectEmit();
+    emit IPolicyProtected.PolicyEngineAttached(address(policyEngine));
     // change policy engine i.e. detach from engine - FaultyPolicyEngine will always revert, but we should ignore it and
     // continue
     vm.expectEmit();
     emit IPolicyProtected.PolicyEngineDetachFailed(
       address(faultyPolicyEngine), abi.encodeWithSignature("Error(string)", "FaultyPolicyEngine: detach not allowed")
     );
-    vm.expectEmit();
-    emit IPolicyProtected.PolicyEngineAttached(address(policyEngine));
     token.attachPolicyEngine(address(policyEngine));
     assert(token.getPolicyEngine() == address(policyEngine));
   }

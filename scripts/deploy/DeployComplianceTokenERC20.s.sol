@@ -2,22 +2,22 @@
 pragma solidity 0.8.26;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {ComplianceTokenERC3643} from "../packages/tokens/erc-3643/src/ComplianceTokenERC3643.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
-import {IdentityRegistry} from "@chainlink/cross-chain-identity/IdentityRegistry.sol";
-import {CredentialRegistry} from "@chainlink/cross-chain-identity/CredentialRegistry.sol";
+import {IPolicyEngine} from "../../packages/policy-management/src/interfaces/IPolicyEngine.sol";
+import {ComplianceTokenERC20} from "../../packages/tokens/erc-20/src/ComplianceTokenERC20.sol";
+import {PolicyEngine} from "../../packages/policy-management/src/core/PolicyEngine.sol";
+import {Policy} from "../../packages/policy-management/src/core/Policy.sol";
+import {OnlyOwnerPolicy} from "../../packages/policy-management/src/policies/OnlyOwnerPolicy.sol";
+import {IdentityRegistry} from "../../packages/cross-chain-identity/src/IdentityRegistry.sol";
+import {CredentialRegistry} from "../../packages/cross-chain-identity/src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidatorPolicy} from
-  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
-import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
+  "../../packages/cross-chain-identity/src/CredentialRegistryIdentityValidatorPolicy.sol";
+import {ICredentialRequirements} from "../../packages/cross-chain-identity/src/interfaces/ICredentialRequirements.sol";
 
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
+import {ERC20TransferExtractor} from "../../packages/policy-management/src/extractors/ERC20TransferExtractor.sol";
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 
-contract DeployComplianceTokenERC3643 is Script {
+contract DeployComplianceTokenERC20 is Script {
   function run() external {
     uint256 tokenOwnerPK = vm.envUint("PRIVATE_KEY");
     address tokenOwner = vm.addr(tokenOwnerPK);
@@ -31,7 +31,7 @@ contract DeployComplianceTokenERC3643 is Script {
     ERC1967Proxy policyEngineProxy = new ERC1967Proxy(address(policyEngineImpl), policyEngineData);
     PolicyEngine policyEngine = PolicyEngine(address(policyEngineProxy));
 
-    // Deploy IdentityRegistry/CredentialRegistry through proxies and an IdentityValidator for use by the
+    // Deploy IdentityRegistry/CredentialRegistry through proxies for use by the
     // CredentialRegistryIdentityValidatorPolicy
     IdentityRegistry identityRegistryImpl = new IdentityRegistry();
     bytes memory identityRegistryData =
@@ -44,6 +44,7 @@ contract DeployComplianceTokenERC3643 is Script {
       abi.encodeWithSelector(CredentialRegistry.initialize.selector, address(policyEngine));
     ERC1967Proxy credentialRegistryProxy = new ERC1967Proxy(address(credentialRegistryImpl), credentialRegistryData);
     CredentialRegistry credentialRegistry = CredentialRegistry(address(credentialRegistryProxy));
+
     bytes32 CREDENTIAL_KYC = keccak256("common.KYC");
     bytes32[] memory requiredCredentials = new bytes32[](1);
     requiredCredentials[0] = CREDENTIAL_KYC;
@@ -108,17 +109,17 @@ contract DeployComplianceTokenERC3643 is Script {
       new bytes32[](0)
     );
 
-    // Deploy the ComplianceTokenERC3643 through proxy
-    ComplianceTokenERC3643 tokenImpl = new ComplianceTokenERC3643();
+    // Deploy the ComplianceTokenERC20 through proxy
+    ComplianceTokenERC20 tokenImpl = new ComplianceTokenERC20();
     bytes memory tokenData = abi.encodeWithSelector(
-      ComplianceTokenERC3643.initialize.selector,
+      ComplianceTokenERC20.initialize.selector,
       vm.envOr("TOKEN_NAME", string("Token")),
       vm.envOr("TOKEN_SYMBOL", string("TOKEN")),
       18,
       address(policyEngine)
     );
     ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), tokenData);
-    ComplianceTokenERC3643 token = ComplianceTokenERC3643(address(tokenProxy));
+    ComplianceTokenERC20 token = ComplianceTokenERC20(address(tokenProxy));
 
     OnlyOwnerPolicy tokenOnlyOwnerPolicyImpl = new OnlyOwnerPolicy();
     bytes memory tokenOnlyOwnerPolicyData =
@@ -127,43 +128,25 @@ contract DeployComplianceTokenERC3643 is Script {
       new ERC1967Proxy(address(tokenOnlyOwnerPolicyImpl), tokenOnlyOwnerPolicyData);
     OnlyOwnerPolicy tokenOnlyOwnerPolicy = OnlyOwnerPolicy(address(tokenOnlyOwnerPolicyProxy));
     policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.mint.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+      address(token), ComplianceTokenERC20.mint.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
     policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.pause.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+      address(token), ComplianceTokenERC20.burnFrom.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
     policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.unpause.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+      address(token), ComplianceTokenERC20.forceTransfer.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
     policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.setAddressFrozen.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+      address(token), ComplianceTokenERC20.freeze.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
     policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.forcedTransfer.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
-    );
-    policyEngine.addPolicy(
-      address(token),
-      ComplianceTokenERC3643.freezePartialTokens.selector,
-      address(tokenOnlyOwnerPolicy),
-      new bytes32[](0)
-    );
-    policyEngine.addPolicy(
-      address(token),
-      ComplianceTokenERC3643.unfreezePartialTokens.selector,
-      address(tokenOnlyOwnerPolicy),
-      new bytes32[](0)
-    );
-    policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.setName.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
-    );
-    policyEngine.addPolicy(
-      address(token), ComplianceTokenERC3643.setSymbol.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
+      address(token), ComplianceTokenERC20.unfreeze.selector, address(tokenOnlyOwnerPolicy), new bytes32[](0)
     );
 
     // Attach an CredentialRegistryIdentityValidatorPolicy to validate the 'to' address of ERC20 transfers
     ERC20TransferExtractor erc20TransferExtractor = new ERC20TransferExtractor();
-    policyEngine.setExtractor(ComplianceTokenERC3643.transfer.selector, address(erc20TransferExtractor));
-    policyEngine.setExtractor(ComplianceTokenERC3643.transferFrom.selector, address(erc20TransferExtractor));
+    policyEngine.setExtractor(ComplianceTokenERC20.transfer.selector, address(erc20TransferExtractor));
+    policyEngine.setExtractor(ComplianceTokenERC20.transferFrom.selector, address(erc20TransferExtractor));
 
     CredentialRegistryIdentityValidatorPolicy identityValidatorPolicyImpl =
       new CredentialRegistryIdentityValidatorPolicy();
@@ -183,20 +166,20 @@ contract DeployComplianceTokenERC3643 is Script {
     // validations
     policyEngine.addPolicy(
       address(token),
-      ComplianceTokenERC3643.transfer.selector,
+      ComplianceTokenERC20.transfer.selector,
       address(identityValidatorPolicy),
       identityValidatorPolicyParameters
     );
     policyEngine.addPolicy(
       address(token),
-      ComplianceTokenERC3643.transferFrom.selector,
+      ComplianceTokenERC20.transferFrom.selector,
       address(identityValidatorPolicy),
       identityValidatorPolicyParameters
     );
 
     vm.stopBroadcast();
 
-    console.log("Deployed ComplianceTokenERC3643 at:", address(token));
+    console.log("Deployed ComplianceTokenERC20 at:", address(token));
     console.log("Deployed PolicyEngine at:", address(policyEngine));
     console.log("Deployed IdentityRegistry at:", address(identityRegistry));
     console.log("Deployed CredentialRegistry at:", address(credentialRegistry));

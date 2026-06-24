@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {
+  IAccessControl,
+  AccessControlUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title RoleBasedAccessControlPolicy
@@ -11,6 +14,10 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * @dev This policy uses OpenZeppelin's AccessControlUpgradeable to manage roles and permissions. The initial owner of
  * the policy is granted the DEFAULT_ADMIN_ROLE, which allows them to grant and revoke any role. Users can also make use
  * of roleAdmin to grant account permission to manage specific roles.
+ *
+ * !!Note!! - The initial owner is granted the DEFAULT_ADMIN_ROLE only at policy instance creation time. If the policy
+ *            owner is subsequently transferred, no automatic changes are made to the previous owner roles. If you
+ *            wish to also revoke DEFAULT_ADMIN_ROLE from the previous owner, that must be done manually.
  *
  * # Usage
  * Grant the operation allowance to a role. This will allow any account with that role to perform the operation.
@@ -21,7 +28,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * ```
  */
 contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
-  string public constant override typeAndVersion = "RoleBasedAccessControlPolicy 1.0.0";
+  string public constant override typeAndVersion = "RoleBasedAccessControlPolicy 1.1.1";
 
   /**
    * @notice Emitted when the operation allowance is granted to a role.
@@ -56,6 +63,23 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
     assembly {
       $.slot := RoleBasedAccessControlPolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - grantOperationAllowanceToRole
+   * - removeOperationAllowanceFromRole
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.grantOperationAllowanceToRole.selector
+        || selector == this.removeOperationAllowanceFromRole.selector || selector == IAccessControl.grantRole.selector
+        || selector == IAccessControl.revokeRole.selector);
   }
 
   /**

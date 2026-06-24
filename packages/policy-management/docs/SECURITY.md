@@ -9,14 +9,31 @@ The ability to add, remove, or reorder policies in the `PolicyEngine` is the mos
 - **Access Control:** Only highly trusted roles, such as a DAO, a multi-sig wallet, or a designated `owner`, MUST be able to call `addPolicy`, `removePolicy`, `setExtractor`, `setPolicyMapper`, and `setDefaultAllow`.
 - **Timelocks:** It is RECOMMENDED that all administrative changes to the `PolicyEngine` are passed through a timelock contract. This creates a delay between the proposal of a change and its execution, giving users time to review the change and exit the system if they do not agree with it.
 
-## 2. Policy Order Matters
+## 2. Policy State Scope Matters
+
+Some policies are designed to have different state/configuration for each subject they are protecting, whereas other policies can either be stateless or are designed to share
+the state across all subjects they are protecting. 
+
+Polices designed to have separate state/configuration per subject or to only be added to a single subject:
+- `SecureMintPolicy` - A single instance of this policy can only be added to one subject. It can be removed from a subject and added to another subject, but it cannot be added to more than one subject at a time.
+- `VolumeRatePolicy` - Volume state is tracked **per-subject**, so if you attach the same policy instance to two tokens, their volume limits will apply independently per token.
+- `CertifiedActionValidatorPolicy` - Permits are designed to be issued per-subject, therefore a single instance of this policy can protect many subjects, and the permit
+ consumption mechanism is inherantly tied independently to each protected subject.
+
+Most policies do not have per-subject configuration nor state. For example, an `AllowPolicy` or `BypassPolicy` maintains a single, global list, and apply the permission
+to all subjects for which it has been added to. Care should be taken that this is the desired setup, recognizing that adding an address to a list will affect all
+the subjects in which that policy is attached. Similarly, the `Pause` policy handles the paused state globally, so enabling pause on the policy instance will
+pause all subjects for which the policy instance has been added. If this is not the desired behavior, separate instances of the policy should be created and attach each
+instance to the individual protected contracts.
+
+## 3. Policy Order Matters
 
 The `PolicyEngine` executes policies for a given function in a specific, ordered sequence. The outcome of the entire chain can change dramatically based on this order.
 
 - **`Allowed` as a Bypass:** A policy that returns `Allowed` will immediately halt execution and bypass all subsequent policies in the chain. For this reason, permissive policies (like a `BypassPolicy` for admins) should be placed with extreme care, typically at the beginning of the policy chain.
 - **Ordering for Restriction:** Restrictive policies should generally be placed before more lenient ones. For example, a `RejectPolicy` for a hard-coded denylist should come before a `VolumePolicy` to ensure the denied user cannot transact at all.
 
-## 3. Trust in Policy, Extractor, and Mapper Contracts
+## 4. Trust in Policy, Extractor, and Mapper Contracts
 
 The `PolicyEngine` delegates trust to the individual `Policy`, `Extractor`, and `Mapper` contracts it is configured to use. A vulnerability in any one of these components can compromise the entire system.
 
@@ -24,7 +41,7 @@ The `PolicyEngine` delegates trust to the individual `Policy`, `Extractor`, and 
 - **`postRun` State Changes:** The `postRun` function on a policy can modify state. This is a powerful feature that could be used for malicious purposes if the policy is not trustworthy (e.g., draining funds, changing ownership).
 - **Extractor/Mapper Trust:** The `PolicyEngine` relies on `Extractors` to correctly and honestly parse transaction data. If an extractor is compromised or misrepresents data, policies may make decisions based on false information, potentially leading to a bypass. For example, an extractor could lie about the `value` of a transfer to circumvent a `VolumePolicy`.
 
-## 4. External Call Risks in Policy Logic
+## 5. External Call Risks in Policy Logic
 
 Policies that make external calls during execution can introduce certain risks, though the specific risks depend on whether the policy functions are `view` or state-changing.
 
@@ -48,7 +65,7 @@ Policies that make external calls during execution can introduce certain risks, 
   - **For non-view policies** - if a policy's `postRun()` or other functions modify state and make external calls, consider reentrancy protection
   - **Policy administrators should assess risk** - when adding policies with external calls, evaluate the trustworthiness of the external contracts being called
 
-## 5. `context` Handling and Race Conditions
+## 6. `context` Handling and Race Conditions
 
 The `context` field in the `PolicyEngine.Payload` is a powerful feature for passing arbitrary data, but it must be managed carefully to avoid race conditions and incorrect usage.
 

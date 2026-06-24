@@ -71,8 +71,14 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
     }
   }
 
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionValidatorPolicy 1.0.0";
+    return "CertifiedActionValidatorPolicy 1.1.1";
   }
 
   /**
@@ -89,17 +95,25 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
   /// @inheritdoc ICertifiedActionValidator
   function present(Permit memory permit, bytes memory signature) public virtual {
     CertifiedActionValidatorPolicyStorage storage $ = _getCertifiedActionValidatorPolicyStorage();
-    if ($.permitIssuer[permit.permitId] != address(0)) {
-      revert PermitAlreadyPresented(permit.permitId);
-    } else if ($.storedPermits[permit.permitId].revoked) {
-      revert PermitAlreadyRevoked(permit.permitId);
+    if (permit.permitId == bytes32(0)) {
+      revert InvalidPermit(permit.permitId);
     } else if (!_validatePermitSignature(hashTypedDataV4Permit(permit), signature)) {
       revert InvalidSignature(permit.permitId);
+    } else if ($.permitIssuer[permit.permitId] != address(0)) {
+      revert PermitAlreadyPresented(permit.permitId);
+    } else if (!_validatePermitExpiry(permit.expiry)) {
+      revert PermitExpired(permit.permitId, permit.expiry);
+    } else if ($.storedPermits[permit.permitId].revoked) {
+      revert PermitAlreadyRevoked(permit.permitId);
+    } else if (permit.maxUses > 0 && $.storedPermits[permit.permitId].uses >= permit.maxUses) {
+      revert PermitAlreadyUsed(permit.permitId, permit.maxUses);
     }
+
     bytes32 intentHash = _hashIntent(permit.caller, permit.subject, permit.selector, permit.parameters);
     $.intentToPermit[intentHash] = permit.permitId;
-    $.storedPermits[permit.permitId] =
-      StoredPermit(permit.maxUses, permit.expiry, $.storedPermits[permit.permitId].uses, false);
+    $.storedPermits[permit.permitId] = StoredPermit({
+      maxUses: permit.maxUses, expiry: permit.expiry, uses: $.storedPermits[permit.permitId].uses, revoked: false
+    });
     $.permitIssuer[permit.permitId] = _recoverIssuer(hashTypedDataV4Permit(permit), signature);
     _storePresentedPermitHook(permit);
     emit PermitStored(permit.permitId);
@@ -112,6 +126,9 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
 
   /// @inheritdoc ICertifiedActionValidator
   function revoke(bytes32 permitId) public virtual onlyOwner {
+    if (permitId == bytes32(0)) {
+      revert InvalidPermit(permitId);
+    }
     CertifiedActionValidatorPolicyStorage storage $ = _getCertifiedActionValidatorPolicyStorage();
     $.storedPermits[permitId].revoked = true;
     emit PermitRevoked(permitId);
@@ -270,7 +287,11 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
   }
 
   // other implementations can extend this to store additional data
-  function _storePresentedPermitHook(Permit memory /*permit*/ ) internal virtual {}
+  function _storePresentedPermitHook(
+    Permit memory /*permit*/
+  )
+    internal
+    virtual {}
 
   // other implementations can extend this to validate the pre-presented permit further
   function _validatePrePresentedPermitHook(
@@ -316,19 +337,21 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
     override
     returns (IPolicyEngine.PolicyResult)
   {
-    bytes32 intentHash = _hashIntent(caller, subject, selector, parameters);
-    if (_getCertifiedActionValidatorPolicyStorage().intentToPermit[intentHash] != 0) {
-      // check for and validate a pre-presented permit
+    // use and validate a contextual permit, if present
+    if (context.length > 0) {
+      SignedPermit memory signedPermit = abi.decode(context, (SignedPermit));
+      if (signedPermit.permit.permitId == bytes32(0)) {
+        revert IPolicyEngine.PolicyRejected("permitId cannot be 0");
+      }
+      // attempt to decode a permit from the context
+      if (!_validateSignedPermit(caller, subject, selector, parameters, signedPermit)) {
+        revert IPolicyEngine.PolicyRejected("contextual permit is invalid");
+      }
+    } else {
+      // otherwise, check for and validate a pre-presented permit
       if (!_validatePrePresentedPermit(caller, subject, selector, parameters)) {
         revert IPolicyEngine.PolicyRejected("no valid pre-presented permit found");
       }
-    } else if (context.length > 0) {
-      // attempt to decode a permit from the context
-      if (!_validateSignedPermit(caller, subject, selector, parameters, abi.decode(context, (SignedPermit)))) {
-        revert IPolicyEngine.PolicyRejected("invalid signed permit in context");
-      }
-    } else {
-      revert IPolicyEngine.PolicyRejected("no valid permit found");
     }
     return IPolicyEngine.PolicyResult.Continue;
   }
@@ -348,18 +371,20 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
     onlyPolicyEngine
   {
     CertifiedActionValidatorPolicyStorage storage $ = _getCertifiedActionValidatorPolicyStorage();
-    // Always use intent hash to determine which permit was validated
-    bytes32 intentHash = _hashIntent(caller, subject, selector, parameters);
-    bytes32 permitId = $.intentToPermit[intentHash];
-    if (permitId != 0) {
-      // Pre-presented permit was used
-      $.storedPermits[permitId].uses++;
-      emit PermitUsed(permitId);
-    } else if (context.length > 0) {
+    if (context.length > 0) {
       // Contextual permit was used and validated
       SignedPermit memory signedPermit = abi.decode(context, (SignedPermit));
       $.storedPermits[signedPermit.permit.permitId].uses++;
       emit PermitUsed(signedPermit.permit.permitId);
+    } else {
+      // use intent hash to see if pre-presented permit was used
+      bytes32 intentHash = _hashIntent(caller, subject, selector, parameters);
+      bytes32 permitId = $.intentToPermit[intentHash];
+      if (permitId != 0) {
+        // Pre-presented permit was used
+        $.storedPermits[permitId].uses++;
+        emit PermitUsed(permitId);
+      }
     }
   }
 }

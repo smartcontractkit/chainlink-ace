@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine, PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
-import {BypassPolicy} from "@chainlink/policy-management/policies/BypassPolicy.sol";
+import {IPolicyEngine, PolicyEngine} from "../../src/core/PolicyEngine.sol";
+import {ERC20TransferExtractor} from "../../src/extractors/ERC20TransferExtractor.sol";
+import {BypassPolicy} from "../../src/policies/BypassPolicy.sol";
 import {MockTokenUpgradeable} from "../helpers/MockTokenUpgradeable.sol";
-import {ERC3643MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC3643MintBurnExtractor.sol";
+import {ERC3643MintBurnExtractor} from "../../src/extractors/ERC3643MintBurnExtractor.sol";
 import {BaseProxyTest} from "../helpers/BaseProxyTest.sol";
 
 contract BypassPolicyTest is BaseProxyTest {

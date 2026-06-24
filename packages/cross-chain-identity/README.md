@@ -126,17 +126,15 @@ This setup creates a robust system where credential issuance and validation are 
 
 ## Critical Requirements
 
-### Non-Reverting View Functions
+### Defensive View Functions
 
-**All view functions in Cross-Chain Identity interfaces MUST NOT revert under any circumstances.** This is a critical requirement for reliable system operation.
+Implementations should use try-catch blocks around external calls and return appropriate boolean results rather than allowing reverts to propagate. This ensures that credential validation failures in one source don't block the entire validation process.
 
-Specifically, the following functions must be implemented with defensive programming patterns:
+Specifically, the following functions SHOULD be implemented with defensive programming patterns:
 
 - `IIdentityValidator.validate()`
 - `ICredentialDataValidator.validateCredentialData()`
 - `ICredentialRegistryValidator.validate()` and `validateAll()`
-
-Implementations should use try-catch blocks around external calls and return appropriate boolean results rather than allowing reverts to propagate. This ensures that credential validation failures in one source don't block the entire validation process.
 
 ## Next Steps
 

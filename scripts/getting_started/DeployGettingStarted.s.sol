@@ -5,10 +5,10 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {MyVault} from "../../getting_started/MyVault.sol";
-import {PolicyEngine} from "@chainlink/policy-management/core/PolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
-import {PausePolicy} from "@chainlink/policy-management/policies/PausePolicy.sol";
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
+import {PolicyEngine} from "../../packages/policy-management/src/core/PolicyEngine.sol";
+import {Policy} from "../../packages/policy-management/src/core/Policy.sol";
+import {PausePolicy} from "../../packages/policy-management/src/policies/PausePolicy.sol";
+import {IPolicyEngine} from "../../packages/policy-management/src/interfaces/IPolicyEngine.sol";
 
 /**
  * @title DeployGettingStarted

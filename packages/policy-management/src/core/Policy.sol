@@ -4,13 +4,14 @@ pragma solidity ^0.8.20;
 import {IPolicy} from "../interfaces/IPolicy.sol";
 import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable, IPolicy {
+abstract contract Policy is UUPSUpgradeable, OwnableUpgradeable, ERC165Upgradeable, IPolicy {
   error Unauthorized();
   error InvalidParameters(string reason);
+  error PolicyAlreadyBound(address subject);
 
   /// @custom:storage-location erc7201:chainlink.ace.Policy
   struct PolicyStorage {
@@ -27,10 +28,6 @@ abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable
     assembly {
       $.slot := PolicyStorageLocation
     }
-  }
-
-  constructor() {
-    _disableInitializers();
   }
 
   modifier onlyPolicyEngine() {
@@ -75,13 +72,49 @@ abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable
     _getPolicyStorage().policyEngine = policyEngine;
   }
 
-  /// @inheritdoc IPolicy
+  // Authorize contract upgrades to only the owner
   // solhint-disable-next-line no-empty-blocks
-  function onInstall(bytes4 /*selector*/ ) public virtual override onlyPolicyEngine {}
+  function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /// @inheritdoc IPolicy
   // solhint-disable-next-line no-empty-blocks
-  function onUninstall(bytes4 /*selector*/ ) public virtual override onlyPolicyEngine {}
+  function onInstall(
+    address, /*subject*/
+    bytes4 /*selector*/
+  )
+    public
+    virtual
+    override
+    onlyPolicyEngine
+  {}
+
+  /// @inheritdoc IPolicy
+  // solhint-disable-next-line no-empty-blocks
+  function onUninstall(
+    address, /*subject*/
+    bytes4 /*selector*/
+  )
+    public
+    virtual
+    override
+    onlyPolicyEngine
+  {}
+
+  /**
+   * @notice Authorize a selector as a configuration selector, allowed to be called by the PolicyEngine.
+   * By default no selectors are allowed. Each policy contract should define its configuration selectors
+   * by overriding this function and return true only for configuration function selectors.
+   */
+  function authorizeConfigSelector(
+    bytes4 /*selector*/
+  )
+    public
+    pure
+    virtual
+    returns (bool)
+  {
+    return false;
+  }
 
   function run(
     address caller,
@@ -107,7 +140,8 @@ abstract contract Policy is Initializable, OwnableUpgradeable, ERC165Upgradeable
     virtual
     override
     onlyPolicyEngine
-  // solhint-disable-next-line no-empty-blocks
+    // solhint-disable-next-line no-empty-blocks
+
   {}
 
   /**

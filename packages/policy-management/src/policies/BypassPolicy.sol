@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
-import {IPolicyEngine} from "@chainlink/policy-management/interfaces/IPolicyEngine.sol";
-import {Policy} from "@chainlink/policy-management/core/Policy.sol";
+import {IPolicyEngine} from "../interfaces/IPolicyEngine.sol";
+import {Policy} from "../core/Policy.sol";
 
 /**
  * @title BypassPolicy
@@ -10,7 +10,7 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
  * subsequent policies in the chain.
  */
 contract BypassPolicy is Policy {
-  string public constant override typeAndVersion = "BypassPolicy 1.0.0";
+  string public constant override typeAndVersion = "BypassPolicy 1.1.1";
 
   /**
    * @notice Emitted when an address is added to the bypass list.
@@ -38,6 +38,21 @@ contract BypassPolicy is Policy {
     assembly {
       $.slot := BypassPolicyStorageLocation
     }
+  }
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /**
+   * @notice Authorize the following configuration functions:
+   * - allowAddress
+   * - disallowAddress
+   */
+  function authorizeConfigSelector(bytes4 selector) public pure override returns (bool) {
+    return (selector == this.allowAddress.selector || selector == this.disallowAddress.selector);
   }
 
   /**
