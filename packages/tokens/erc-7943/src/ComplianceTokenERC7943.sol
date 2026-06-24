@@ -5,8 +5,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC7943Fungible} from "./interfaces/IERC7943.sol";
 import {ComplianceTokenStoreERC7943} from "./ComplianceTokenStoreERC7943.sol";
-import {PolicyProtected} from "@chainlink/policy-management/core/PolicyProtected.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {PolicyProtectedUpgradeable} from "@chainlink/policy-management/core/PolicyProtectedUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title ComplianceTokenERC7943
@@ -15,8 +15,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
  * @dev This implementation provides compliance features for Real World Assets:
  *
  * **Whitelist Behavior:**
- * - Only whitelisted addresses can transact (send/receive tokens)
- * - The canTransact() function checks whitelist status
+ * - Only whitelisted addresses can send or receive tokens
+ * - The canSend()/canReceive() functions check whitelist status
  * - Whitelist management is policy-protected
  *
  * **Frozen Token Behavior:**
@@ -30,11 +30,24 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
  * - Policy-protected administrative functions
  * - Integration with policy engine for complex compliance rules
  */
-contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTokenStoreERC7943, IERC20, IERC7943Fungible {
+contract ComplianceTokenERC7943 is
+  PolicyProtectedUpgradeable,
+  UUPSUpgradeable,
+  ComplianceTokenStoreERC7943,
+  IERC20,
+  IERC7943Fungible
+{
   /// @notice Emitted when an account's whitelist status is changed.
   /// @param account The address whose status was changed.
-  /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-  event Whitelisted(address indexed account, bool status);
+  /// @param sendAllowed The new send-eligibility status (true = allowed to send).
+  /// @param receiveAllowed The new receive-eligibility status (true = allowed to receive).
+  event Whitelisted(address indexed account, bool sendAllowed, bool receiveAllowed);
+
+  // disabling initializers on the implementation contract itself
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
 
   /**
    * @dev Initializes the contract with the provided token metadata and assigns policy engine.
@@ -153,33 +166,27 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
   // ** ERC-7943 Methods **
 
   /// @inheritdoc IERC7943Fungible
-  function canTransfer(
-    address from,
-    address to,
-    uint256 amount
-  )
-    public
-    view
-    virtual
-    override
-    returns (bool allowed)
-  {
+  function canTransfer(address from, address to, uint256 amount) public view virtual override returns (bool allowed) {
     uint256 fromBalance = balanceOf(from);
     uint256 frozenAmount = getFrozenTokens(from);
 
-    // Check if balance is sufficient
+    // Check if amount exceeds unfrozen balance (balance - frozen)
     if (fromBalance < frozenAmount) return false;
-    // Check if amount exceeds unfrozen balance
     if (amount > fromBalance - frozenAmount) return false;
-    // Check if both parties can transact (whitelist check)
-    if (!canTransact(from) || !canTransact(to)) return false;
+    // Check directional eligibility: sender can send and recipient can receive
+    if (!canSend(from) || !canReceive(to)) return false;
 
     return true;
   }
 
   /// @inheritdoc IERC7943Fungible
-  function canTransact(address account) public view virtual override returns (bool allowed) {
-    return getComplianceTokenStorage().whitelist[account];
+  function canSend(address account) public view virtual override returns (bool allowed) {
+    return getComplianceTokenStorage().sendWhitelist[account];
+  }
+
+  /// @inheritdoc IERC7943Fungible
+  function canReceive(address account) public view virtual override returns (bool allowed) {
+    return getComplianceTokenStorage().receiveWhitelist[account];
   }
 
   /// @inheritdoc IERC7943Fungible
@@ -196,7 +203,7 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
 
   /// @inheritdoc IERC7943Fungible
   /// @dev This implementation:
-  /// - Requires the recipient to be whitelisted (canTransact check)
+  /// - Requires the recipient to be allowed to receive (canReceive check)
   /// - Automatically unfreezes tokens if the transfer amount exceeds the unfrozen balance
   /// - Emits both Transfer and ForcedTransfer events
   function forcedTransfer(
@@ -212,7 +219,8 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
   {
     require(from != address(0), "ERC7943: force transfer from the zero address");
     require(to != address(0), "ERC7943: force transfer to the zero address");
-    require(canTransact(to), "ERC7943: recipient not whitelisted");
+    // Single-party permissioned context: at minimum enforce canReceive on the recipient.
+    if (!canReceive(to)) revert ERC7943CannotReceive(to);
 
     // Handle frozen tokens - unfreeze if necessary
     _excessFrozenUpdate(from, amount);
@@ -229,14 +237,19 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
   // ** Whitelist Management **
 
   /**
-   * @notice Updates the whitelist status for a given account.
-   * @dev Policy-protected. Emits a {Whitelisted} event upon successful update.
+   * @notice Updates the send/receive whitelist status for a given account.
+   * @dev Policy-protected. Sets send- and receive-eligibility independently, enabling one-way
+   *      restrictions (e.g. an account blocked from receiving but still allowed to send).
+   *      Emits a {Whitelisted} event upon successful update.
    * @param account The address whose whitelist status is to be changed.
-   * @param status The new whitelist status (true = whitelisted, false = not whitelisted).
+   * @param sendAllowed Whether the account is allowed to send tokens.
+   * @param receiveAllowed Whether the account is allowed to receive tokens.
    */
-  function changeWhitelist(address account, bool status) external virtual runPolicy {
-    getComplianceTokenStorage().whitelist[account] = status;
-    emit Whitelisted(account, status);
+  function changeWhitelist(address account, bool sendAllowed, bool receiveAllowed) external virtual runPolicy {
+    ComplianceTokenStorage storage $ = getComplianceTokenStorage();
+    $.sendWhitelist[account] = sendAllowed;
+    $.receiveWhitelist[account] = receiveAllowed;
+    emit Whitelisted(account, sendAllowed, receiveAllowed);
   }
 
   // ** End Whitelist Management **
@@ -245,23 +258,26 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
 
   /**
    * @notice Creates `amount` new tokens and assigns them to `to`.
-   * @dev Policy-protected. Requires `to` to be whitelisted (canTransact check).
+   * @dev Policy-protected. Requires `to` to be allowed to receive (canReceive check).
    *      Emits a {Transfer} event with `from` set to the zero address.
    * @param to The address that will receive the minted tokens.
    * @param amount The amount of tokens to mint.
    */
   function mint(address to, uint256 amount) public virtual runPolicy {
-    require(canTransact(to), "ERC7943: mint to non-whitelisted address");
+    if (!canReceive(to)) revert ERC7943CannotReceive(to);
     _mint(to, amount);
   }
 
   /**
    * @notice Destroys `amount` tokens from the caller's account.
-   * @dev Policy-protected. Requires sufficient unfrozen balance.
+   * @dev Policy-protected. Treated as a permissionless burn per ERC-7943: the caller MUST be able
+   *      to send (canSend) and MUST NOT burn more than its unfrozen balance.
    *      Emits a {Transfer} event with `to` set to the zero address.
    * @param amount The amount of tokens to burn.
    */
   function burn(uint256 amount) public virtual runPolicy {
+    if (!canSend(msg.sender)) revert ERC7943CannotSend(msg.sender);
+    _checkFrozenBalance(msg.sender, amount);
     _burn(msg.sender, amount);
   }
 
@@ -285,8 +301,18 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
     return owner();
   }
 
+  // Authorize contract upgrades to only the owner
+  // solhint-disable-next-line no-empty-blocks
+  function _authorizeUpgrade(address) internal override onlyOwner {}
+
   /// @inheritdoc IERC165
-  function supportsInterface(bytes4 interfaceId) public view virtual override(PolicyProtected, IERC165) returns (bool) {
+  function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    virtual
+    override(PolicyProtectedUpgradeable, IERC165)
+    returns (bool)
+  {
     return interfaceId == type(IERC7943Fungible).interfaceId || interfaceId == type(IERC20).interfaceId
       || super.supportsInterface(interfaceId);
   }
@@ -298,8 +324,8 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
     require(to != address(0), "ERC20: transfer to the zero address");
 
     // ERC-7943 compliance checks
-    require(canTransact(from), "ERC7943: sender not whitelisted");
-    require(canTransact(to), "ERC7943: recipient not whitelisted");
+    if (!canSend(from)) revert ERC7943CannotSend(from);
+    if (!canReceive(to)) revert ERC7943CannotReceive(to);
     _checkFrozenBalance(from, amount);
 
     _update(from, to, amount);
@@ -334,7 +360,7 @@ contract ComplianceTokenERC7943 is Initializable, PolicyProtected, ComplianceTok
     uint256 balance = balanceOf(account);
     uint256 frozen = getFrozenTokens(account);
     uint256 unfrozen = balance > frozen ? balance - frozen : 0;
-    require(amount <= unfrozen, "ERC7943: amount exceeds unfrozen balance");
+    if (amount > unfrozen) revert ERC7943InsufficientUnfrozenBalance(account, amount, unfrozen);
   }
 
   /**

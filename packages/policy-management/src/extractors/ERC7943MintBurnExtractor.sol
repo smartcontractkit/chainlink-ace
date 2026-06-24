@@ -13,6 +13,9 @@ import {ComplianceTokenERC7943} from "../../../tokens/erc-7943/src/ComplianceTok
  *      For burn(), the account is set to msg.sender since it burns from the caller's balance.
  */
 contract ERC7943MintBurnExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ERC7943MintBurnExtractor 1.0.0";
+
   /// @notice Parameter key for the target account address in mint/burn operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");
 

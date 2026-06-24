@@ -11,7 +11,8 @@ contract ComplianceTokenStoreERC7943 {
     mapping(address account => uint256 balance) balances;
     mapping(address account => mapping(address spender => uint256 allowance)) allowances;
     mapping(address account => uint256 amount) frozenTokens;
-    mapping(address account => bool whitelisted) whitelist;
+    mapping(address account => bool allowed) sendWhitelist;
+    mapping(address account => bool allowed) receiveWhitelist;
   }
 
   // keccak256(abi.encode(uint256(keccak256("compliance-token-erc7943.ComplianceTokenStoreERC7943")) - 1)) &

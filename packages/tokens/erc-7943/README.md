@@ -8,10 +8,10 @@ ERC-7943 (uRWA) defines a minimal, unopinionated interface for tokenized Real Wo
 
 This implementation provides the following ERC-7943 compliant features:
 
-### Whitelist Management (`canTransact`)
-- Only whitelisted addresses can send or receive tokens
-- The `canTransact()` function checks whitelist status
-- Whitelist changes are policy-protected via `changeWhitelist()`
+### Whitelist Management (`canSend`, `canReceive`)
+- Send- and receive-eligibility are tracked in **separate whitelists**, enabling one-way restrictions (e.g. an account blocked from receiving but still allowed to send), as described by EIP-7943
+- `canSend()` checks the send whitelist; `canReceive()` checks the receive whitelist
+- Both directions are set in one call, policy-protected via `changeWhitelist(account, sendAllowed, receiveAllowed)`
 
 ### Token Freezing (`getFrozenTokens`, `setFrozenTokens`)
 - Administrators can freeze tokens in user accounts
@@ -70,14 +70,16 @@ interface IERC7943Fungible is IERC165 {
     event Frozen(address indexed account, uint256 amount);
 
     // Errors
-    error ERC7943CannotTransact(address account);
+    error ERC7943CannotSend(address account);
+    error ERC7943CannotReceive(address account);
     error ERC7943CannotTransfer(address from, address to, uint256 amount);
     error ERC7943InsufficientUnfrozenBalance(address account, uint256 amount, uint256 unfrozen);
 
     // Functions
     function forcedTransfer(address from, address to, uint256 amount) external returns (bool);
     function setFrozenTokens(address account, uint256 amount) external returns (bool);
-    function canTransact(address account) external view returns (bool);
+    function canSend(address account) external view returns (bool);
+    function canReceive(address account) external view returns (bool);
     function getFrozenTokens(address account) external view returns (uint256);
     function canTransfer(address from, address to, uint256 amount) external view returns (bool);
 }
@@ -87,7 +89,7 @@ interface IERC7943Fungible is IERC165 {
 
 The contract supports interface detection via ERC-165:
 
-- `IERC7943Fungible`: `0x29388973`
+- `IERC7943Fungible`: `0x3edbb4c4`
 - `IERC20`: `0x36372b07`
 - `IERC165`: `0x01ffc9a7`
 
@@ -100,7 +102,7 @@ The following extractors are provided for policy engine integration:
 | `ERC7943MintBurnExtractor` | mint, burn, burnFrom | account, amount |
 | `ERC7943ForcedTransferExtractor` | forcedTransfer | from, to, amount |
 | `ERC7943SetFrozenTokensExtractor` | setFrozenTokens | account, amount |
-| `ERC7943WhitelistExtractor` | changeWhitelist | account, status |
+| `ERC7943WhitelistExtractor` | changeWhitelist | account, sendAllowed, receiveAllowed |
 
 Standard ERC-20 transfer functions use the `ERC20TransferExtractor`.
 
@@ -111,15 +113,15 @@ Standard ERC-20 transfer functions use the `ERC20TransferExtractor`.
 ComplianceTokenERC7943 token = new ComplianceTokenERC7943();
 token.initialize("My RWA Token", "RWA", 18, address(policyEngine));
 
-// Whitelist users
-token.changeWhitelist(alice, true);
-token.changeWhitelist(bob, true);
+// Whitelist users (sendAllowed, receiveAllowed)
+token.changeWhitelist(alice, true, true);
+token.changeWhitelist(bob, true, true);
 
 // Mint tokens
 token.mint(alice, 1000);
 
 // Check if transfer would succeed
-bool canSend = token.canTransfer(alice, bob, 500);
+bool allowed = token.canTransfer(alice, bob, 500);
 
 // Freeze some tokens
 token.setFrozenTokens(alice, 200);

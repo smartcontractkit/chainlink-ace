@@ -73,4 +73,26 @@ abstract contract BaseProxyTest is Test {
     ERC1967Proxy tokenProxy = new ERC1967Proxy(address(tokenImpl), tokenData);
     return ComplianceTokenERC7943(address(tokenProxy));
   }
+
+  /**
+   * @notice Expect a PolicyRunRejected revert with a payload created from parameters (empty context).
+   * @param policy The address of the policy that rejected the action
+   * @param reason The reason for rejection
+   * @param selector The function selector
+   * @param sender The sender address
+   * @param data The encoded function parameters (calldata after the selector)
+   */
+  function _expectRejectedRevert(
+    address policy,
+    string memory reason,
+    bytes4 selector,
+    address sender,
+    bytes memory data
+  )
+    internal
+  {
+    IPolicyEngine.Payload memory payload =
+      IPolicyEngine.Payload({selector: selector, sender: sender, data: data, context: ""});
+    vm.expectRevert(abi.encodeWithSelector(IPolicyEngine.PolicyRunRejected.selector, policy, reason, payload));
+  }
 }

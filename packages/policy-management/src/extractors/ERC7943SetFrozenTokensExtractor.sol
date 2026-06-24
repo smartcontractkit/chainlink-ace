@@ -12,6 +12,9 @@ import {IERC7943Fungible} from "../../../tokens/erc-7943/src/interfaces/IERC7943
  *      and extracts the account address and amount parameters for freezing operations.
  */
 contract ERC7943SetFrozenTokensExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ERC7943SetFrozenTokensExtractor 1.0.0";
+
   /// @notice Parameter key for the target account address in freeze operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");
 

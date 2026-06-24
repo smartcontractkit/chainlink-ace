@@ -12,9 +12,12 @@ import {OnlyAuthorizedSenderPolicy} from "@chainlink/policy-management/policies/
 import {VolumePolicy} from "@chainlink/policy-management/policies/VolumePolicy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
 import {ERC7943MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC7943MintBurnExtractor.sol";
-import {ERC7943SetFrozenTokensExtractor} from
-  "@chainlink/policy-management/extractors/ERC7943SetFrozenTokensExtractor.sol";
-import {ERC7943ForcedTransferExtractor} from "@chainlink/policy-management/extractors/ERC7943ForcedTransferExtractor.sol";
+import {
+  ERC7943SetFrozenTokensExtractor
+} from "@chainlink/policy-management/extractors/ERC7943SetFrozenTokensExtractor.sol";
+import {
+  ERC7943ForcedTransferExtractor
+} from "@chainlink/policy-management/extractors/ERC7943ForcedTransferExtractor.sol";
 import {ERC7943WhitelistExtractor} from "@chainlink/policy-management/extractors/ERC7943WhitelistExtractor.sol";
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 
@@ -103,7 +106,9 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     s_policyEngine.addPolicy(
       address(s_token), ComplianceTokenERC7943.mint.selector, address(minterBurnerList), new bytes32[](0)
     );
-    s_policyEngine.addPolicy(address(s_token), ComplianceTokenERC7943.mint.selector, address(volumePolicy), volumeParams);
+    s_policyEngine.addPolicy(
+      address(s_token), ComplianceTokenERC7943.mint.selector, address(volumePolicy), volumeParams
+    );
 
     // Burn/burnFrom - onlyAuthorized
     s_policyEngine.addPolicy(
@@ -141,15 +146,18 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_changeWhitelist_success() public {
     address alice = makeAddr("alice");
 
-    assertEq(s_token.canTransact(alice), false);
+    assertEq(s_token.canSend(alice), false);
+    assertEq(s_token.canReceive(alice), false);
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
 
-    assertEq(s_token.canTransact(alice), true);
+    assertEq(s_token.canSend(alice), true);
+    assertEq(s_token.canReceive(alice), true);
 
-    s_token.changeWhitelist(alice, false);
+    s_token.changeWhitelist(alice, false, false);
 
-    assertEq(s_token.canTransact(alice), false);
+    assertEq(s_token.canSend(alice), false);
+    assertEq(s_token.canReceive(alice), false);
   }
 
   function test_changeWhitelist_notAuthorized_revert() public {
@@ -158,15 +166,14 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.changeWhitelist.selector,
-        address(whitelistManagerList),
-        "sender is not authorized"
-      )
+    _expectRejectedRevert(
+      address(whitelistManagerList),
+      "sender is not authorized",
+      ComplianceTokenERC7943.changeWhitelist.selector,
+      alice,
+      abi.encode(alice, true, true)
     );
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
   }
 
   // ** Mint Tests **
@@ -174,7 +181,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_mint_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     assertEq(s_token.balanceOf(alice), 120);
@@ -184,7 +191,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_mint_bridge_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
 
     vm.stopPrank();
     vm.startPrank(s_bridge);
@@ -197,22 +204,21 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_mint_notWhitelisted_revert() public {
     address alice = makeAddr("alice");
 
-    vm.expectRevert("ERC7943: mint to non-whitelisted address");
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotReceive.selector, alice));
     s_token.mint(alice, 120);
   }
 
   function test_mint_over_failure() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.mint.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
+    _expectRejectedRevert(
+      address(volumePolicy),
+      "amount outside allowed volume limits",
+      ComplianceTokenERC7943.mint.selector,
+      s_owner,
+      abi.encode(alice, uint256(220))
     );
     s_token.mint(alice, 220);
   }
@@ -220,15 +226,14 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_mint_under_failure() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.mint.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
+    _expectRejectedRevert(
+      address(volumePolicy),
+      "amount outside allowed volume limits",
+      ComplianceTokenERC7943.mint.selector,
+      s_owner,
+      abi.encode(alice, uint256(50))
     );
     s_token.mint(alice, 50);
   }
@@ -236,18 +241,17 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_mint_notAuthorized_revert() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.mint.selector,
-        address(minterBurnerList),
-        "sender is not authorized"
-      )
+    _expectRejectedRevert(
+      address(minterBurnerList),
+      "sender is not authorized",
+      ComplianceTokenERC7943.mint.selector,
+      alice,
+      abi.encode(alice, uint256(120))
     );
     s_token.mint(alice, 120);
   }
@@ -257,8 +261,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_burn_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(s_bridge, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(s_bridge, true, true);
     s_token.mint(s_bridge, 120);
 
     vm.stopPrank();
@@ -271,32 +275,33 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   }
 
   function test_burn_overBalance_revert() public {
-    s_token.changeWhitelist(s_bridge, true);
+    s_token.changeWhitelist(s_bridge, true, true);
     s_token.mint(s_bridge, 120);
 
     vm.stopPrank();
     vm.startPrank(s_bridge);
 
-    vm.expectRevert("ERC20: burn amount exceeds balance");
+    vm.expectRevert(
+      abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, s_bridge, 121, 120)
+    );
     s_token.burn(121);
   }
 
   function test_burn_notAuthorized_failure() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.burn.selector,
-        address(minterBurnerList),
-        "sender is not authorized"
-      )
+    _expectRejectedRevert(
+      address(minterBurnerList),
+      "sender is not authorized",
+      ComplianceTokenERC7943.burn.selector,
+      alice,
+      abi.encode(uint256(50))
     );
     s_token.burn(50);
   }
@@ -304,7 +309,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_burnFrom_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     s_token.burnFrom(alice, 70);
@@ -316,7 +321,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_burnFrom_bridge_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
@@ -331,19 +336,18 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_burnFrom_notAuthorized_failure() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        ComplianceTokenERC7943.burnFrom.selector,
-        address(minterBurnerList),
-        "sender is not authorized"
-      )
+    _expectRejectedRevert(
+      address(minterBurnerList),
+      "sender is not authorized",
+      ComplianceTokenERC7943.burnFrom.selector,
+      alice,
+      abi.encode(alice, uint256(70))
     );
     s_token.burnFrom(alice, 70);
   }
@@ -354,8 +358,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     vm.stopPrank();
@@ -371,17 +375,17 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     // Remove alice from whitelist
-    s_token.changeWhitelist(alice, false);
+    s_token.changeWhitelist(alice, false, false);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert("ERC7943: sender not whitelisted");
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotSend.selector, alice));
     s_token.transfer(bob, 110);
   }
 
@@ -389,13 +393,13 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 170);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert("ERC7943: recipient not whitelisted");
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotReceive.selector, bob));
     s_token.transfer(bob, 110);
   }
 
@@ -403,21 +407,20 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC20.transfer.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
+    _expectRejectedRevert(
+      address(volumePolicy),
+      "amount outside allowed volume limits",
+      IERC20.transfer.selector,
+      alice,
+      abi.encode(bob, uint256(210))
     );
     s_token.transfer(bob, 210);
   }
@@ -426,20 +429,19 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC20.transfer.selector,
-        address(volumePolicy),
-        "amount outside allowed volume limits"
-      )
+    _expectRejectedRevert(
+      address(volumePolicy),
+      "amount outside allowed volume limits",
+      IERC20.transfer.selector,
+      alice,
+      abi.encode(bob, uint256(50))
     );
     s_token.transfer(bob, 50);
   }
@@ -451,8 +453,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     vm.stopPrank();
@@ -474,8 +476,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     vm.stopPrank();
@@ -495,7 +497,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_setFrozenTokens_success() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     s_token.setFrozenTokens(alice, 50);
@@ -506,19 +508,18 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
   function test_setFrozenTokens_notAuthorized_revert() public {
     address alice = makeAddr("alice");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC7943Fungible.setFrozenTokens.selector,
-        address(freezingList),
-        "sender is not authorized"
-      )
+    _expectRejectedRevert(
+      address(freezingList),
+      "sender is not authorized",
+      IERC7943Fungible.setFrozenTokens.selector,
+      alice,
+      abi.encode(alice, uint256(50))
     );
     s_token.setFrozenTokens(alice, 50);
   }
@@ -527,8 +528,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
 
     s_token.setFrozenTokens(alice, 50);
@@ -536,7 +537,10 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert("ERC7943: amount exceeds unfrozen balance");
+    // balance 120, frozen 50 => unfrozen 70
+    vm.expectRevert(
+      abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, alice, 110, 70)
+    );
     s_token.transfer(bob, 110);
   }
 
@@ -544,8 +548,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     s_token.setFrozenTokens(alice, 50);
@@ -564,8 +568,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
 
     vm.stopPrank();
@@ -577,7 +581,10 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(alice);
 
-    vm.expectRevert("ERC7943: amount exceeds unfrozen balance");
+    // balance 120, frozen 100 => unfrozen 20
+    vm.expectRevert(
+      abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, alice, 110, 20)
+    );
     s_token.transfer(bob, 110);
 
     vm.stopPrank();
@@ -599,8 +606,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address bob = makeAddr("bob");
     address charlie = makeAddr("charlie");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 150);
 
     s_token.setFrozenTokens(alice, 60);
@@ -613,7 +620,10 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     vm.stopPrank();
     vm.startPrank(charlie);
 
-    vm.expectRevert("ERC7943: amount exceeds unfrozen balance");
+    // balance 150, frozen 60 => unfrozen 90
+    vm.expectRevert(
+      abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, alice, 110, 90)
+    );
     s_token.transferFrom(alice, bob, 110);
   }
 
@@ -623,8 +633,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
 
     assertEq(s_token.canTransfer(alice, bob, 100), true);
@@ -636,8 +646,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 120);
 
     s_token.setFrozenTokens(alice, 50);
@@ -650,7 +660,7 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     s_token.mint(alice, 120);
 
     // Bob is not whitelisted
@@ -663,8 +673,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     s_token.forcedTransfer(alice, bob, 60);
@@ -677,8 +687,8 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 170);
 
     s_token.setFrozenTokens(alice, 100);
@@ -696,20 +706,19 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
-    s_token.changeWhitelist(bob, true);
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
     s_token.mint(alice, 150);
 
     vm.stopPrank();
     vm.startPrank(bob);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(
-        IPolicyEngine.PolicyRunRejected.selector,
-        IERC7943Fungible.forcedTransfer.selector,
-        address(onlyOwnerPolicy),
-        "caller is not the policy owner"
-      )
+    _expectRejectedRevert(
+      address(onlyOwnerPolicy),
+      "caller is not the policy owner",
+      IERC7943Fungible.forcedTransfer.selector,
+      bob,
+      abi.encode(alice, bob, uint256(60))
     );
     s_token.forcedTransfer(alice, bob, 60);
   }
@@ -718,22 +727,97 @@ contract ComplianceTokenERC7943Test is BaseProxyTest {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
-    s_token.changeWhitelist(alice, true);
+    s_token.changeWhitelist(alice, true, true);
     // Bob is NOT whitelisted
     s_token.mint(alice, 150);
 
-    vm.expectRevert("ERC7943: recipient not whitelisted");
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotReceive.selector, bob));
     s_token.forcedTransfer(alice, bob, 60);
   }
 
   // ** ERC-165 Interface Support Tests **
 
   function test_supportsInterface() public view {
-    // IERC7943Fungible interface ID: 0x29388973
+    // IERC7943Fungible interface ID mandated by ERC-7943: 0x3edbb4c4
+    assertEq(type(IERC7943Fungible).interfaceId, bytes4(0x3edbb4c4));
     assertTrue(s_token.supportsInterface(type(IERC7943Fungible).interfaceId));
+    assertTrue(s_token.supportsInterface(0x3edbb4c4));
     // IERC20 interface ID
     assertTrue(s_token.supportsInterface(type(IERC20).interfaceId));
     // IERC165 interface ID
     assertTrue(s_token.supportsInterface(0x01ffc9a7));
+  }
+
+  // ** Directional Eligibility / Burn Frozen Tests **
+
+  function test_burn_frozenBalance_revert() public {
+    s_token.changeWhitelist(s_bridge, true, true);
+    s_token.mint(s_bridge, 120);
+    s_token.setFrozenTokens(s_bridge, 100);
+
+    vm.stopPrank();
+    vm.startPrank(s_bridge);
+
+    // balance 120, frozen 100 => unfrozen 20; burning 50 must revert
+    vm.expectRevert(
+      abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, s_bridge, 50, 20)
+    );
+    s_token.burn(50);
+  }
+
+  function test_canSendCanReceive_independent() public {
+    address alice = makeAddr("alice");
+
+    // Allowed to send only.
+    s_token.changeWhitelist(alice, true, false);
+    assertEq(s_token.canSend(alice), true);
+    assertEq(s_token.canReceive(alice), false);
+
+    // Allowed to receive only.
+    s_token.changeWhitelist(alice, false, true);
+    assertEq(s_token.canSend(alice), false);
+    assertEq(s_token.canReceive(alice), true);
+  }
+
+  function test_canTransfer_oneWayRestriction_failure() public {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
+    s_token.mint(alice, 120);
+
+    assertEq(s_token.canTransfer(alice, bob, 100), true);
+
+    // Block bob from receiving while keeping his send eligibility.
+    s_token.changeWhitelist(bob, true, false);
+    assertEq(s_token.canSend(bob), true);
+    assertEq(s_token.canReceive(bob), false);
+
+    // alice -> bob now fails (bob cannot receive)...
+    assertEq(s_token.canTransfer(alice, bob, 100), false);
+    vm.stopPrank();
+    vm.startPrank(alice);
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotReceive.selector, bob));
+    s_token.transfer(bob, 100);
+  }
+
+  function test_transfer_oneWaySenderBlocked_revert() public {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+
+    s_token.changeWhitelist(alice, true, true);
+    s_token.changeWhitelist(bob, true, true);
+    s_token.mint(alice, 120);
+
+    // Block alice from sending while keeping her receive eligibility.
+    s_token.changeWhitelist(alice, false, true);
+    assertEq(s_token.canSend(alice), false);
+    assertEq(s_token.canReceive(alice), true);
+
+    vm.stopPrank();
+    vm.startPrank(alice);
+    vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943CannotSend.selector, alice));
+    s_token.transfer(bob, 100);
   }
 }

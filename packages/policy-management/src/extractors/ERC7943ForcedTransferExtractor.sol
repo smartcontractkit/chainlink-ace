@@ -13,6 +13,9 @@ import {IERC7943Fungible} from "../../../tokens/erc-7943/src/interfaces/IERC7943
  *      Forced transfers allow authorized agents to move tokens between addresses without approval.
  */
 contract ERC7943ForcedTransferExtractor is IExtractor {
+  /// @notice Type and version of the extractor
+  string public constant override typeAndVersion = "ERC7943ForcedTransferExtractor 1.0.0";
+
   /// @notice Parameter key for the sender/from address in forced transfer operations
   bytes32 public constant PARAM_FROM = keccak256("from");
 
