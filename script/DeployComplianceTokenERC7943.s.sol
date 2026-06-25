@@ -10,15 +10,19 @@ import {Policy} from "@chainlink/policy-management/core/Policy.sol";
 import {OnlyOwnerPolicy} from "@chainlink/policy-management/policies/OnlyOwnerPolicy.sol";
 import {IdentityRegistry} from "@chainlink/cross-chain-identity/IdentityRegistry.sol";
 import {CredentialRegistry} from "@chainlink/cross-chain-identity/CredentialRegistry.sol";
-import {CredentialRegistryIdentityValidatorPolicy} from
-  "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
+import {
+  CredentialRegistryIdentityValidatorPolicy
+} from "@chainlink/cross-chain-identity/CredentialRegistryIdentityValidatorPolicy.sol";
 import {ICredentialRequirements} from "@chainlink/cross-chain-identity/interfaces/ICredentialRequirements.sol";
 
 import {ERC20TransferExtractor} from "@chainlink/policy-management/extractors/ERC20TransferExtractor.sol";
 import {ERC7943MintBurnExtractor} from "@chainlink/policy-management/extractors/ERC7943MintBurnExtractor.sol";
-import {ERC7943ForcedTransferExtractor} from "@chainlink/policy-management/extractors/ERC7943ForcedTransferExtractor.sol";
-import {ERC7943SetFrozenTokensExtractor} from
-  "@chainlink/policy-management/extractors/ERC7943SetFrozenTokensExtractor.sol";
+import {
+  ERC7943ForcedTransferExtractor
+} from "@chainlink/policy-management/extractors/ERC7943ForcedTransferExtractor.sol";
+import {
+  ERC7943SetFrozenTokensExtractor
+} from "@chainlink/policy-management/extractors/ERC7943SetFrozenTokensExtractor.sol";
 import {ERC7943WhitelistExtractor} from "@chainlink/policy-management/extractors/ERC7943WhitelistExtractor.sol";
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
