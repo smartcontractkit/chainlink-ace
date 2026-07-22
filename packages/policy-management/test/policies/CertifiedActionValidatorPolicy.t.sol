@@ -1031,6 +1031,58 @@ contract CertifiedActionValidatorPolicyTest is BaseCertifiedActionTest {
     vm.assertEq(policy.check(permit1, signature2), false);
   }
 
+  function test_check_expiredPermit_returnsFalse() public {
+    vm.warp(2 days);
+    vm.startPrank(deployer);
+
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.pause.selector, address(policy), new bytes32[](0));
+
+    ICertifiedActionValidator.Permit memory permit =
+      _generatePermit(deployer, address(token), MockTokenUpgradeable.pause.selector, new bytes[](0));
+    permit.expiry = uint48(block.timestamp - 1); // already expired
+    bytes memory signature = _signPermit(policy, permit, signerKey);
+
+    // Signed by an allowed issuer but expired: check() must mirror run() and reject it.
+    vm.assertEq(policy.check(permit, signature), false);
+  }
+
+  function test_check_revokedPermit_returnsFalse() public {
+    vm.startPrank(deployer);
+
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.pause.selector, address(policy), new bytes32[](0));
+
+    ICertifiedActionValidator.Permit memory permit =
+      _generatePermit(deployer, address(token), MockTokenUpgradeable.pause.selector, new bytes[](0));
+    bytes memory signature = _signPermit(policy, permit, signerKey);
+
+    policy.present(permit, signature);
+    vm.assertEq(policy.check(permit, signature), true);
+
+    policy.revoke(permit.permitId);
+    vm.assertEq(policy.check(permit, signature), false);
+  }
+
+  function test_check_maxUsesReached_returnsFalse() public {
+    vm.startPrank(deployer);
+
+    policyEngine.addPolicy(address(token), MockTokenUpgradeable.pause.selector, address(policy), new bytes32[](0));
+
+    ICertifiedActionValidator.Permit memory permit =
+      _generatePermit(deployer, address(token), MockTokenUpgradeable.pause.selector, new bytes[](0));
+    permit.maxUses = 1;
+    bytes memory signature = _signPermit(policy, permit, signerKey);
+
+    policy.present(permit, signature);
+    vm.assertEq(policy.check(permit, signature), true);
+
+    // Consume the single allowed use through the engine-only postRun hook.
+    vm.stopPrank();
+    vm.prank(address(policyEngine));
+    policy.postRun(deployer, address(token), MockTokenUpgradeable.pause.selector, new bytes[](0), "");
+
+    vm.assertEq(policy.check(permit, signature), false);
+  }
+
   function test_present_expiredPermit_revert() public {
     vm.warp(1 days); // ensure block.timestamp is well past 0 so we can set a past expiry
     vm.startPrank(deployer);

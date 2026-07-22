@@ -14,7 +14,7 @@ import {IIdentityRegistry} from "../../../cross-chain-identity/src/interfaces/II
  */
 contract IdentityRegistryExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "IdentityRegistryExtractor 1.1.1";
+  string public constant override typeAndVersion = "IdentityRegistryExtractor 1.2.0";
 
   /// @notice Parameter key for the cross-chain identity
   bytes32 public constant PARAM_CCID = keccak256("ccid");

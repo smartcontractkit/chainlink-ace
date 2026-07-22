@@ -5,7 +5,7 @@ import {IPolicyEngine} from "../../../../policy-management/src/interfaces/IPolic
 import {Policy} from "../../../../policy-management/src/core/Policy.sol";
 
 contract ExpectedContextPolicy is Policy {
-  string public constant override typeAndVersion = "ExpectedContextPolicy 1.1.1";
+  string public constant override typeAndVersion = "ExpectedContextPolicy 1.2.0";
 
   bytes private s_expectedContext;
 

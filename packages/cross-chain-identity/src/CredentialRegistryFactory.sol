@@ -180,6 +180,13 @@ contract CredentialRegistryFactory {
    *      If a registry with the same salt already exists:
    *         idempotent is false - revert the creation.
    *         idempotent is true - return the existing address.
+   *
+   *      Note: unlike the minimal-clone path, `uniqueRegistryId` alone does NOT identify a registry here. The CREATE2
+   *      address is computed from the proxy creation code, which embeds the init data (`policyEngine` and
+   *      `initialOwner`). The same (creator, uniqueRegistryId) with a different `policyEngine` or `initialOwner`
+   *      therefore deploys to a different address. This is not a hijack risk - the salt still binds `msg.sender`, so no
+   *      one can deploy at another creator's address, and CREATE2 reverts on a pre-occupied address. Off-chain systems
+   *      indexing registries by (creator, uniqueRegistryId) must not assume a single address for the upgradeable path.
    */
   function _createUpgradeableCredentialRegistry(
     address implementation,

@@ -13,7 +13,7 @@ import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenER
  */
 contract ComplianceTokenFreezeUnfreezeExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ComplianceTokenFreezeUnfreezeExtractor 1.1.1";
+  string public constant override typeAndVersion = "ComplianceTokenFreezeUnfreezeExtractor 1.2.0";
 
   /// @notice Parameter key for the target account address in freeze/unfreeze operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");

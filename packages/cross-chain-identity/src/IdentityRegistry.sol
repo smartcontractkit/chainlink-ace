@@ -6,7 +6,7 @@ import {PolicyProtectedUpgradeable} from "../../policy-management/src/core/Polic
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract IdentityRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, IIdentityRegistry {
-  string public constant override typeAndVersion = "IdentityRegistry 1.1.1";
+  string public constant override typeAndVersion = "IdentityRegistry 1.2.0";
 
   /// @custom:storage-location erc7201:chainlink.ace.IdentityRegistry
   struct IdentityRegistryStorage {

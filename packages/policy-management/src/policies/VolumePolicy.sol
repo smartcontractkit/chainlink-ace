@@ -12,7 +12,7 @@ import {Policy} from "../core/Policy.sol";
  * amount may differ from the amount parameter this policy validates against.
  */
 contract VolumePolicy is Policy {
-  string public constant override typeAndVersion = "VolumePolicy 1.1.1";
+  string public constant override typeAndVersion = "VolumePolicy 1.2.0";
 
   /**
    * @notice Emitted when the maximum volume limit is set.

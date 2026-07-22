@@ -53,7 +53,7 @@ contract CertifiedActionERC20TransferValidatorPolicy is CertifiedActionValidator
   }
 
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionERC20TransferValidatorPolicy 1.1.1";
+    return "CertifiedActionERC20TransferValidatorPolicy 1.2.0";
   }
 
   /**

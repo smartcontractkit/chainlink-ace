@@ -5,7 +5,7 @@ import {IMapper} from "../../src/interfaces/IMapper.sol";
 import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 
 contract CustomMapper is IMapper {
-  string public constant override typeAndVersion = "CustomMapper 1.1.1";
+  string public constant override typeAndVersion = "CustomMapper 1.2.0";
 
   bytes[] private s_mappedParameters;
 

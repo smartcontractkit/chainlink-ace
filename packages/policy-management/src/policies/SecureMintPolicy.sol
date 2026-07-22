@@ -31,12 +31,24 @@ import {Policy} from "../core/Policy.sol";
  * the reserve feed must also report reserves with 18 decimals. Mismatched decimals will cause incorrect reserve
  * calculations, potentially allowing over-minting or incorrectly blocking valid mints.
  *
+ * ## NOTE - `subject` vs `tokenMetadata.tokenAddress`:
+ * The bound token is tracked in two independent fields: `subject` is written by `onInstall()` when the policy is
+ * installed on a protected contract, and `tokenMetadata.tokenAddress` is supplied separately via `configure()` /
+ * `setTokenMetadata()`. The contract does NOT enforce that the two refer to the same token. The configuration owner
+ * is responsible for supplying token metadata that matches the subject this instance is (or will be) installed on.
+ * The practical risk of divergence is limited: `run()` reads `totalSupply()` from `subject` and only uses
+ * `tokenMetadata.tokenDecimals` for reserve scaling - `tokenMetadata.tokenAddress` itself is never read in `run()`.
+ * The residual risk is therefore "wrong decimals scale the reserve cap", which the `decimals()` cross-check in
+ * `_setTokenMetadata()` already catches for tokens that expose `decimals()`. Because an instance can be moved between
+ * subjects (`onUninstall()` clears `subject`) while `tokenMetadata` stays fixed, operators re-targeting an instance
+ * to a different token must ensure the configured decimals still match the new subject.
+ *
  * ## Dependencies:
  * - **AggregatorV3Interface**: Used to retrieve the latest reserve value.
  * - **IERC20**: The policy assumes the `subject` contract implements ERC-20 and supports `totalSupply()`.
  */
 contract SecureMintPolicy is Policy {
-  string public constant override typeAndVersion = "SecureMintPolicy 1.1.1";
+  string public constant override typeAndVersion = "SecureMintPolicy 1.2.0";
 
   /**
    * @notice Emitted when the PoR feed contract address is set.
@@ -183,12 +195,11 @@ contract SecureMintPolicy is Policy {
       TokenMetadata memory _tokenMetadata
     ) = abi.decode(parameters, (address, ReserveMarginConfigs, uint256, TokenMetadata));
 
-    SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage();
-    $.reservesFeed = AggregatorV3Interface(_reservesFeed);
-    emit ReservesFeedSet(_reservesFeed);
+    _setReservesFeed(_reservesFeed);
 
     _setReserveMargin(_reserveMarginConfigs.reserveMarginMode, _reserveMarginConfigs.reserveMarginAmount);
 
+    SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage();
     $.maxStalenessSeconds = _maxStalenessSeconds;
     emit MaxStalenessSecondsSet(_maxStalenessSeconds);
 
@@ -203,7 +214,20 @@ contract SecureMintPolicy is Policy {
   function setReservesFeed(address _reservesFeed) external onlyOwner {
     SecureMintPolicyStorage storage $ = _getSecureMintPolicyStorage(); // Gas optimization: single storage reference
     require(_reservesFeed != address($.reservesFeed), "feed same as current");
-    $.reservesFeed = AggregatorV3Interface(_reservesFeed);
+    _setReservesFeed(_reservesFeed);
+  }
+
+  /**
+   * @notice Validates and stores the reserves feed.
+   * @dev Rejects the zero address and non-contract addresses so a misconfiguration cannot silently disable minting
+   * (every mint reverts when `run()` calls `latestRoundData()` on an invalid feed). Used by both `configure()` and
+   * `setReservesFeed()`. The supplied address must implement {AggregatorV3Interface}.
+   * @param _reservesFeed The new Chainlink AggregatorV3 price feed contract address.
+   */
+  function _setReservesFeed(address _reservesFeed) internal {
+    require(_reservesFeed != address(0), "reserves feed is zero address");
+    require(_reservesFeed.code.length > 0, "reserves feed is not a contract");
+    _getSecureMintPolicyStorage().reservesFeed = AggregatorV3Interface(_reservesFeed);
     emit ReservesFeedSet(_reservesFeed);
   }
 

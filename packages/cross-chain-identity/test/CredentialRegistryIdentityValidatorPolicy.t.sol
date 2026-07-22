@@ -3,12 +3,14 @@ pragma solidity ^0.8.20;
 
 import {IPolicyEngine} from "../../policy-management/src/interfaces/IPolicyEngine.sol";
 import {ICredentialRequirements} from "../src/interfaces/ICredentialRequirements.sol";
+import {IIdentityValidator} from "../src/interfaces/IIdentityValidator.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {CredentialRegistry} from "../src/CredentialRegistry.sol";
 import {CredentialRegistryIdentityValidatorPolicy} from "../src/CredentialRegistryIdentityValidatorPolicy.sol";
 import {PolicyEngine} from "../../policy-management/src/core/PolicyEngine.sol";
 import {Policy} from "../../policy-management/src/core/Policy.sol";
 import {BaseProxyTest} from "./helpers/BaseProxyTest.sol";
+import {MockCredentialDataValidator} from "./helpers/MockCredentialDataValidator.sol";
 
 contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
   bytes32 public constant REQUIREMENT_KYC = keccak256("KYC");
@@ -67,6 +69,64 @@ contract CredentialRegistryIdentityValidatorPolicyTest is BaseProxyTest {
     IPolicyEngine.PolicyResult policyRes =
       s_identityValidatorPolicy.run(address(0), address(0), 0x00000000, parameters, "");
     assert(policyRes == IPolicyEngine.PolicyResult.Continue);
+  }
+
+  function test_typeAndVersion() public view {
+    assertEq(s_identityValidatorPolicy.typeAndVersion(), "CredentialRegistryIdentityValidatorPolicy 1.2.0");
+  }
+
+  function test_postRun_emitsIdentityValidated_attestation() public {
+    address account1 = makeAddr("account1");
+    bytes32 ccid = keccak256("account1");
+
+    s_identityRegistry.registerIdentity(ccid, account1, "");
+    s_credentialRegistry.registerCredential(ccid, CREDENTIAL_KYC, 0, "", "");
+
+    bytes[] memory parameters = new bytes[](1);
+    parameters[0] = abi.encode(account1);
+
+    vm.expectEmit(true, true, true, true, address(s_identityValidatorPolicy));
+    emit IIdentityValidator.IdentityValidated(
+      account1, ccid, CREDENTIAL_KYC, address(s_credentialRegistry), address(0), bytes32(0)
+    );
+
+    vm.stopPrank();
+    vm.prank(address(s_policyEngine));
+    s_identityValidatorPolicy.postRun(address(0), address(0), 0x00000000, parameters, "");
+  }
+
+  function test_postRun_emitsIdentityValidated_withCredentialDataHash() public {
+    MockCredentialDataValidator dataValidator = new MockCredentialDataValidator();
+    bytes memory credentialData = abi.encode("US");
+    dataValidator.setDataValid(true);
+
+    CredentialRegistryIdentityValidatorPolicy policy =
+      _deployCredentialRegistryIdentityValidatorPolicy(address(s_policyEngine), s_owner, "");
+    policy.addCredentialSource(
+      ICredentialRequirements.CredentialSourceInput(
+        CREDENTIAL_KYC, address(s_identityRegistry), address(s_credentialRegistry), address(dataValidator)
+      )
+    );
+    policy.addCredentialRequirement(
+      ICredentialRequirements.CredentialRequirementInput(REQUIREMENT_KYC, s_credentials_kyc, 1, false)
+    );
+
+    address account1 = makeAddr("account1");
+    bytes32 ccid = keccak256("account1");
+    s_identityRegistry.registerIdentity(ccid, account1, "");
+    s_credentialRegistry.registerCredential(ccid, CREDENTIAL_KYC, 0, credentialData, "");
+
+    bytes[] memory parameters = new bytes[](1);
+    parameters[0] = abi.encode(account1);
+
+    vm.expectEmit(true, true, true, true, address(policy));
+    emit IIdentityValidator.IdentityValidated(
+      account1, ccid, CREDENTIAL_KYC, address(s_credentialRegistry), address(dataValidator), keccak256(credentialData)
+    );
+
+    vm.stopPrank();
+    vm.prank(address(s_policyEngine));
+    policy.postRun(address(0), address(0), 0x00000000, parameters, "");
   }
 
   function test_run_rejected() public {

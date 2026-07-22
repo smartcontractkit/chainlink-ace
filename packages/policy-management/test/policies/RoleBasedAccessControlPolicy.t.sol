@@ -127,6 +127,86 @@ contract RoleBasedAccessControlPolicyTest is BaseProxyTest {
     policy.removeOperationAllowanceFromRole(MockTokenUpgradeable.transfer.selector, role);
   }
 
+  function test_grantOperationAllowanceToRole_reGrantAfterRemove_succeeds() public {
+    bytes4 operation = MockTokenUpgradeable.transfer.selector;
+    bytes32 role = keccak256("role");
+    vm.startPrank(deployer);
+
+    policy.grantOperationAllowanceToRole(operation, role);
+    policy.removeOperationAllowanceFromRole(operation, role);
+
+    // The O(1) membership entry must be cleared on removal, so re-granting must not falsely revert as a duplicate.
+    vm.expectEmit();
+    emit RoleBasedAccessControlPolicy.OperationAllowanceGrantedToRole(operation, role);
+    policy.grantOperationAllowanceToRole(operation, role);
+
+    // And the membership entry is set again, so a duplicate grant still reverts.
+    vm.expectRevert("Role already has operation allowance");
+    policy.grantOperationAllowanceToRole(operation, role);
+  }
+
+  function test_removeOperationAllowanceFromRole_middleRole_keepsOthersConsistent() public {
+    bytes4 operation = MockTokenUpgradeable.transfer.selector;
+    bytes32 roleA = keccak256("roleA");
+    bytes32 roleB = keccak256("roleB");
+    bytes32 roleC = keccak256("roleC");
+    vm.startPrank(deployer);
+
+    policy.grantOperationAllowanceToRole(operation, roleA);
+    policy.grantOperationAllowanceToRole(operation, roleB);
+    policy.grantOperationAllowanceToRole(operation, roleC);
+
+    // Removing the middle role swap-pops roleC into its slot; membership and array must stay in sync.
+    policy.removeOperationAllowanceFromRole(operation, roleB);
+
+    // roleB is gone: removing it again reverts via the O(1) existence check.
+    vm.expectRevert("Role does not have operation allowance");
+    policy.removeOperationAllowanceFromRole(operation, roleB);
+
+    // roleA and the swapped-in roleC remain allowed: re-granting either reverts as a duplicate.
+    vm.expectRevert("Role already has operation allowance");
+    policy.grantOperationAllowanceToRole(operation, roleA);
+    vm.expectRevert("Role already has operation allowance");
+    policy.grantOperationAllowanceToRole(operation, roleC);
+
+    // Enumeration still finds the swapped-in role: an account holding roleC is allowed for the operation.
+    policy.grantRole(roleC, txSender);
+    assertTrue(policy.hasAllowedRole(operation, txSender));
+  }
+
+  function test_removeOperationAllowanceFromRole_removeSwappedInRole_succeeds() public {
+    bytes4 operation = MockTokenUpgradeable.transfer.selector;
+    bytes32 roleA = keccak256("roleA");
+    bytes32 roleB = keccak256("roleB");
+    bytes32 roleC = keccak256("roleC");
+    vm.startPrank(deployer);
+
+    policy.grantOperationAllowanceToRole(operation, roleA);
+    policy.grantOperationAllowanceToRole(operation, roleB);
+    policy.grantOperationAllowanceToRole(operation, roleC);
+
+    // Remove the first role; roleC (the last entry) is swapped into its slot and its stored index must be updated.
+    policy.removeOperationAllowanceFromRole(operation, roleA);
+
+    // Removing the swapped-in role must succeed via its updated index; a stale index would corrupt the removal.
+    vm.expectEmit();
+    emit RoleBasedAccessControlPolicy.OperationAllowanceRemovedFromRole(operation, roleC);
+    policy.removeOperationAllowanceFromRole(operation, roleC);
+
+    // Only roleB remains and is still enumerable.
+    policy.grantRole(roleB, txSender);
+    assertTrue(policy.hasAllowedRole(operation, txSender));
+
+    // roleC is fully gone: removing it again reverts.
+    vm.expectRevert("Role does not have operation allowance");
+    policy.removeOperationAllowanceFromRole(operation, roleC);
+
+    // roleA was removed, so it can be granted again; roleB is still present, so a duplicate grant reverts.
+    policy.grantOperationAllowanceToRole(operation, roleA);
+    vm.expectRevert("Role already has operation allowance");
+    policy.grantOperationAllowanceToRole(operation, roleB);
+  }
+
   function test_transfer_senderWithoutRole_reverts() public {
     vm.startPrank(txSender);
 

@@ -18,10 +18,18 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  *      The policy maintains a list of authorized issuers who can sign permits. Each permit includes details such as
  *      the caller, subject, action selector, parameters, metadata, maximum uses, and expiry time.
  *
+ *      Note that `permitId` is a single, shared namespace across all authorized issuers: usage (and therefore the
+ *      `maxUses` budget) is tracked per `permitId`, not per (issuer, permitId). This is intentional. As a consequence,
+ *      if two issuers independently choose the same `permitId`, they share one usage counter and one issuer's usage
+ *      consumes the other's budget. Multi-issuer integrations must coordinate so that `permitId` values do not collide
+ *      across issuers.
+ *
  *      The policy supports two modes of operation:
  *      1. Pre-presented permits: Permits that have been presented and stored on-chain before the action is attempted.
- *      Note that the act of presenting a permit overrides any ability for a context permit for the same intent.
  *      2. Contextual permits: Permits that are provided in the context of the action attempt.
+ *      Note that a contextual permit takes precedence over a pre-presented permit for that intent: when a contextual
+ *      permit is supplied for an action it is used and validated directly, and any pre-presented permit for that intent
+ *      is not consulted. The pre-presented permit path is only used when no contextual permit is provided.
  *
  *      The policy checks the validity of the permit based on its signature, expiry, and usage limits before allowing
  *      the action to proceed.
@@ -45,6 +53,8 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
 
   /// @custom:storage-location erc7201:chainlink.ace.CertifiedActionValidatorPolicy
   struct CertifiedActionValidatorPolicyStorage {
+    // Usage is tracked per `permitId` across all issuers (a single shared namespace), not per (issuer, permitId).
+    // Issuers that pick the same `permitId` therefore share one usage counter / `maxUses` budget.
     mapping(bytes32 permitId => StoredPermit storedPermit) storedPermits;
     mapping(address issuerKey => bool allowed) issuers;
     mapping(bytes32 intentHash => bytes32 permitId) intentToPermit;
@@ -78,7 +88,7 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
   }
 
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionValidatorPolicy 1.1.1";
+    return "CertifiedActionValidatorPolicy 1.2.0";
   }
 
   /**
@@ -121,7 +131,12 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
 
   /// @inheritdoc ICertifiedActionValidator
   function check(Permit memory permit, bytes memory signature) public view virtual returns (bool) {
-    return _validatePermitSignature(hashTypedDataV4Permit(permit), signature);
+    CertifiedActionValidatorPolicyStorage storage $ = _getCertifiedActionValidatorPolicyStorage();
+    // Mirror the lifecycle validation run() applies to a permit (signature/issuer, revocation, expiry, usage limit).
+    // The action-intent match and any subclass hook are intentionally not applied here as they require action context.
+    return _validatePermitSignature(hashTypedDataV4Permit(permit), signature)
+      && _validatePermitNotRevoked(permit.permitId) && _validatePermitExpiry(permit.expiry)
+      && _validatePermitMaxUses($.storedPermits[permit.permitId].uses, permit.maxUses);
   }
 
   /// @inheritdoc ICertifiedActionValidator
@@ -204,9 +219,9 @@ contract CertifiedActionValidatorPolicy is Policy, EIP712Upgradeable, ICertified
 
   /**
    * @notice Validates a signed permit against the action parameters.
-   * @dev This function does not verify whether a pre-presented permit exists for the same intent. The `run()` function
-   *      performs that check before invoking this function. Callers invoking this function directly must ensure no
-   *      pre-presented permit exists for the intent to preserve permit priority semantics.
+   * @dev This function validates a contextual permit on its own merits and intentionally does not consult any
+   *      pre-presented permit for the same intent. A contextual permit takes precedence over a pre-presented permit,
+   *      so when one is supplied the pre-presented permit for that intent is deliberately ignored.
    */
   function _validateSignedPermit(
     address caller,

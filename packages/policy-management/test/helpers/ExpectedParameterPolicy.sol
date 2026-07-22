@@ -5,7 +5,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract ExpectedParameterPolicy is Policy {
-  string public constant override typeAndVersion = "ExpectedParameterPolicy 1.1.1";
+  string public constant override typeAndVersion = "ExpectedParameterPolicy 1.2.0";
 
   bytes[] private s_expectedParameters;
 

@@ -13,7 +13,7 @@ import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
  */
 contract ERC3643MintBurnExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ERC3643MintBurnExtractor 1.1.1";
+  string public constant override typeAndVersion = "ERC3643MintBurnExtractor 1.2.0";
 
   /// @notice Parameter key for the target account address in mint/burn operations
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");

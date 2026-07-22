@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that rejects requests if the maximum amount is exceeded (amount does not accumulate between calls).
  */
 contract MaxPolicy is Policy {
-  string public constant override typeAndVersion = "MaxPolicy 1.1.1";
+  string public constant override typeAndVersion = "MaxPolicy 1.2.0";
 
   /// @custom:storage-location erc7201:chainlink.ace.MaxPolicy
   struct MaxPolicyStorage {

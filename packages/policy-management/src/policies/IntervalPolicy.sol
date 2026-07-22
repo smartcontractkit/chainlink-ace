@@ -40,7 +40,7 @@ import {Policy} from "../core/Policy.sol";
  *   with a 4-slot offset, effectively shifting the cycle start.
  */
 contract IntervalPolicy is Policy {
-  string public constant override typeAndVersion = "IntervalPolicy 1.1.1";
+  string public constant override typeAndVersion = "IntervalPolicy 1.2.0";
 
   /**
    * @notice Emitted when the start slot is updated.

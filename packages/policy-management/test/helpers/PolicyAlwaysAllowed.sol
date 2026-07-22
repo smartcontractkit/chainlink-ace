@@ -5,7 +5,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract PolicyAlwaysAllowed is Policy {
-  string public constant override typeAndVersion = "PolicyAlwaysAllowed 1.1.1";
+  string public constant override typeAndVersion = "PolicyAlwaysAllowed 1.2.0";
 
   uint8 private s_policyNumber;
 

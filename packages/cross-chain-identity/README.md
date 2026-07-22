@@ -58,7 +58,11 @@ These concepts are implemented through a few key onchain contracts and offchain 
 
 - **`IdentityRegistry` & `CredentialRegistry`**: These two contracts are the heart of the system. The first maps user addresses to their universal CCID, and the second stores the credentials (like KYC status) associated with that CCID.
 - **Credential Issuer (Offchain Actor)**: This is a trusted entity (e.g., your KYC provider) that performs real-world verification. It has the onchain permission to create new identities in the `IdentityRegistry` and/or issue credentials to them in the `CredentialRegistry`.
-- **`CredentialRegistryIdentityValidatorPolicy`**: This is a specialized, pre-built policy that contains all the logic for checking credentials. You attach this to your application's functions to enforce your compliance rules.
+- **`CredentialRegistryIdentityValidatorPolicy`**: A specialized, pre-built policy that contains all the logic for checking credentials. You attach this to your application's functions to enforce a single set of credential requirements.
+- **Grouped validation (new)**: For use cases where the required credentials differ by “segment” (e.g., retail vs. accredited vs. institutional), use:
+  - **`GroupedCredentialRegistryIdentityValidator`**: An `IIdentityValidator` implementation that **routes an account to the first matching group** and then enforces that group’s credential requirements.
+  - **`GroupedIdentityValidatorPolicy`**: A `Policy` that wraps the grouped validator so it can be attached in a `PolicyEngine` (and also emits `IdentityValidated` events in `postRun`).
+  - **`IGroupedCredentialRequirements`**: The configuration interface (groups, routing, per-group requirements, and per-group credential sources).
 
 ### The Governance Layer (Policy Management)
 
@@ -117,7 +121,9 @@ graph TD
 Using the Cross-Chain Identity component in a secure, integrated way involves three main steps, which are typically performed in a deployment script:
 
 1.  **Deploy and Secure Infrastructure**: Deploy the `IdentityRegistry` and `CredentialRegistry`, making sure to set their owner to your `PolicyEngine` instance.
-2.  **Configure Validation**: Deploy and configure the `CredentialRegistryIdentityValidatorPolicy` with your desired credential requirements (e.g., must have KYC). Then, use the `PolicyEngine` to attach this policy to the application functions you want to protect.
+2.  **Configure Validation**:
+    - **Single requirement set**: Deploy and configure `CredentialRegistryIdentityValidatorPolicy` with your desired credential requirements (e.g., must have KYC), then attach it to the application functions you want to protect.
+    - **Segmented requirements**: Deploy and configure `GroupedIdentityValidatorPolicy` to define multiple groups, each with its own credential requirements and sources, then attach it the same way. Routing is **first-match-wins**, so put higher-priority/more-specific groups earlier.
 3.  **Authorize Issuers**: Deploy an access control policy (like `OnlyAuthorizedSenderPolicy`) to grant a trusted off-chain entity the permission to issue new credentials.
 
 This setup creates a robust system where credential issuance and validation are both governed by flexible, onchain policies.

@@ -126,6 +126,11 @@ abstract contract PolicyProtectedBaseUpgradeable is ERC165Upgradeable, IPolicyPr
   }
 
   /// @inheritdoc IPolicyProtected
+  function getSenderContext(address sender) public view override returns (bytes memory) {
+    return _policyProtectedStorage().senderContext[sender];
+  }
+
+  /// @inheritdoc IPolicyProtected
   function clearContext() public override {
     delete _policyProtectedStorage().senderContext[msg.sender];
   }

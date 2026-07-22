@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that only allows the policy owner to call the method, similar to `Ownable` from OpenZeppelin.
  */
 contract OnlyOwnerPolicy is Policy {
-  string public constant override typeAndVersion = "OnlyOwnerPolicy 1.1.1";
+  string public constant override typeAndVersion = "OnlyOwnerPolicy 1.2.0";
 
   // disabling initializers on the implementation contract itself
   /// @custom:oz-upgrades-unsafe-allow constructor

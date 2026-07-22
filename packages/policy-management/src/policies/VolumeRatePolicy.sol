@@ -11,7 +11,7 @@ import {Policy} from "../core/Policy.sol";
  * This policy enforces limits on the total amount transferred per account over a configurable time period.
  */
 contract VolumeRatePolicy is Policy {
-  string public constant override typeAndVersion = "VolumeRatePolicy 1.1.1";
+  string public constant override typeAndVersion = "VolumeRatePolicy 1.2.0";
 
   /// @notice The transfer volume data of an account.
   struct TransferredAt {

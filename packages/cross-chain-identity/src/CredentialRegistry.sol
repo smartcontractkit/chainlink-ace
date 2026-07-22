@@ -7,7 +7,7 @@ import {PolicyProtectedUpgradeable} from "../../policy-management/src/core/Polic
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract CredentialRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, ICredentialRegistry {
-  string public constant override typeAndVersion = "CredentialRegistry 1.1.1";
+  string public constant override typeAndVersion = "CredentialRegistry 1.2.0";
 
   /// @custom:storage-location erc7201:chainlink.ace.CredentialRegistry
   struct CredentialRegistryStorage {

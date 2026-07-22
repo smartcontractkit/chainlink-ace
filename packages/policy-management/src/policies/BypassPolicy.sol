@@ -10,7 +10,7 @@ import {Policy} from "../core/Policy.sol";
  * subsequent policies in the chain.
  */
 contract BypassPolicy is Policy {
-  string public constant override typeAndVersion = "BypassPolicy 1.1.1";
+  string public constant override typeAndVersion = "BypassPolicy 1.2.0";
 
   /**
    * @notice Emitted when an address is added to the bypass list.

@@ -10,7 +10,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
  * @dev Implementation of the ITrustedIssuerRegistry interface using ERC-7201 storage pattern.
  */
 contract TrustedIssuerRegistry is PolicyProtectedUpgradeable, UUPSUpgradeable, ITrustedIssuerRegistry {
-  string public constant override typeAndVersion = "TrustedIssuerRegistry 1.1.1";
+  string public constant override typeAndVersion = "TrustedIssuerRegistry 1.2.0";
 
   /// @custom:storage-location erc7201:chainlink.ace.TrustedIssuerRegistry
   struct TrustedIssuerRegistryStorage {
