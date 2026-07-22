@@ -6,7 +6,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract PolicyAlwaysContinue is Policy {
-  string public constant override typeAndVersion = "PolicyAlwaysContinue 1.1.1";
+  string public constant override typeAndVersion = "PolicyAlwaysContinue 1.2.0";
 
   function run(
     address,

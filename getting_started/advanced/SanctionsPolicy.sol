@@ -6,7 +6,7 @@ import {IPolicyEngine} from "../../packages/policy-management/src/interfaces/IPo
 import {SanctionsList} from "./SanctionsList.sol";
 
 contract SanctionsPolicy is Policy {
-    string public constant override typeAndVersion = "SanctionsPolicy 1.1.1";
+    string public constant override typeAndVersion = "SanctionsPolicy 1.2.0";
 
     address public sanctionsList;
 

@@ -72,6 +72,15 @@ abstract contract PolicyProtectedBase is ERC165, IPolicyProtected {
     _attachPolicyEngine(policyEngine);
   }
 
+  /**
+   * @dev Points this contract at `policyEngine`, attaches to it, then best-effort detaches from the previous engine.
+   *      A policy engine's `detach()` is expected never to revert. If the old engine's `detach()` does revert, the
+   *      failure is swallowed (only `PolicyEngineDetachFailed` is emitted) so that engine rotation still succeeds.
+   *      The consequence is that the old engine keeps recording this contract as attached, so a later attempt to
+   *      re-attach that same engine will revert with `TargetAlreadyAttached`. This is acceptable because a reverting
+   *      `detach()` only occurs with a malfunctioning engine; recovering re-attachment to such an engine would require
+   *      an out-of-band fix on the engine side.
+   */
   function _attachPolicyEngine(address policyEngine) internal {
     IPolicyEngine oldEngine = s_policyEngine;
     s_policyEngine = IPolicyEngine(policyEngine);
@@ -102,6 +111,11 @@ abstract contract PolicyProtectedBase is ERC165, IPolicyProtected {
   /// @inheritdoc IPolicyProtected
   function getContext() public view override returns (bytes memory) {
     return s_senderContext[msg.sender];
+  }
+
+  /// @inheritdoc IPolicyProtected
+  function getSenderContext(address sender) public view override returns (bytes memory) {
+    return s_senderContext[sender];
   }
 
   /// @inheritdoc IPolicyProtected

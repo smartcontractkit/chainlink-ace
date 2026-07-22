@@ -10,7 +10,7 @@ import {PolicyProtectedUpgradeable} from "../../../policy-management/src/core/Po
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract ComplianceTokenERC3643 is PolicyProtectedUpgradeable, UUPSUpgradeable, ComplianceTokenStoreERC3643, IToken {
-  string internal constant TOKEN_VERSION = "1.1.1";
+  string internal constant TOKEN_VERSION = "1.2.0";
 
   /// modifiers
 
@@ -535,8 +535,11 @@ contract ComplianceTokenERC3643 is PolicyProtectedUpgradeable, UUPSUpgradeable, 
    * running the policy engine on each underlying item in the batch.
    */
   function _requirePolicyRun(bytes4 selector, bytes memory data) internal virtual {
+    // Forward the caller's context (as single-item runs do via the runPolicy modifier) so policies that branch on
+    // context behave the same on the batch surface. Note: a single context is applied to every item in the batch;
+    // callers needing distinct per-item context must use the single-item entry points.
     IPolicyEngine(getPolicyEngine())
-      .run(IPolicyEngine.Payload({selector: selector, sender: msg.sender, data: data, context: ""}));
+      .run(IPolicyEngine.Payload({selector: selector, sender: msg.sender, data: data, context: getContext()}));
   }
 
   function _checkTransfer(address _to, uint256 _amount) internal virtual {

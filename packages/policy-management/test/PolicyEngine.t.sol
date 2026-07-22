@@ -521,6 +521,25 @@ contract PolicyEngineTest is BaseProxyTest {
     assertEq(policyRejected.owner(), address(policyEngine));
   }
 
+  function test_TransferPolicyOwnership() public {
+    address admin = makeAddr("admin");
+    address newOwner = makeAddr("newOwner");
+
+    policyEngine.grantRole(policyEngine.ADMIN_ROLE(), admin);
+
+    PolicyAlwaysRejected policyRejected = PolicyAlwaysRejected(
+      _deployPolicy(address(policyAlwaysRejectedImpl), address(policyEngine), address(policyEngine), new bytes(0))
+    );
+
+    assertEq(policyRejected.owner(), address(policyEngine));
+
+    vm.startPrank(admin);
+
+    policyEngine.transferPolicyOwnership(address(policyRejected), newOwner);
+
+    assertEq(policyRejected.owner(), newOwner);
+  }
+
   function test_upgradePolicy_clone_rejects() public {
     address admin = makeAddr("admin");
 

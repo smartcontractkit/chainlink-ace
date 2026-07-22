@@ -6,6 +6,15 @@ pragma solidity ^0.8.20;
  * @dev Interface for validating the account identity.
  */
 interface IIdentityValidator {
+  event IdentityValidated(
+    address indexed account,
+    bytes32 indexed ccid,
+    bytes32 indexed credentialTypeId,
+    address registry,
+    address dataValidator,
+    bytes32 credentialDataHash
+  );
+
   /**
    * @notice Validates the identity of an account.
    * @dev This function MUST NOT revert. Use try-catch blocks around external calls and return

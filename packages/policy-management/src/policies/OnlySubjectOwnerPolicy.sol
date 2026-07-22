@@ -11,7 +11,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * only be applied to Ownable subjects, otherwise it will reject all transactions.
  */
 contract OnlySubjectOwnerPolicy is Policy {
-  string public constant override typeAndVersion = "OnlySubjectOwnerPolicy 1.1.1";
+  string public constant override typeAndVersion = "OnlySubjectOwnerPolicy 1.2.0";
 
   // disabling initializers on the implementation contract itself
   /// @custom:oz-upgrades-unsafe-allow constructor

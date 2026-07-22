@@ -10,7 +10,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract PolicyEngine is UUPSUpgradeable, AccessControlUpgradeable, IPolicyEngine {
-  string public constant override typeAndVersion = "PolicyEngine 1.1.1";
+  string public constant override typeAndVersion = "PolicyEngine 1.2.0";
 
   uint256 private constant MAX_POLICIES = 8;
   bytes32 public constant POLICY_CONFIG_ADMIN_ROLE = keccak256("POLICY_CONFIG_ADMIN_ROLE");
@@ -296,7 +296,12 @@ contract PolicyEngine is UUPSUpgradeable, AccessControlUpgradeable, IPolicyEngin
       }
     }
     if (removedPolicy != address(0)) {
-      IPolicy(policy).onUninstall(target, selector);
+      // Best-effort uninstall hook: a reverting onUninstall() must not roll back the removal above, otherwise a
+      // misbehaving policy could become impossible to evict. Mirrors the try/catch guarding of run()/postRun().
+      try IPolicy(policy).onUninstall(target, selector) {}
+      catch (bytes memory reason) {
+        emit PolicyUninstallFailed(target, selector, policy, reason);
+      }
     }
   }
 
@@ -356,6 +361,10 @@ contract PolicyEngine is UUPSUpgradeable, AccessControlUpgradeable, IPolicyEngin
     onlyRole(ADMIN_ROLE)
   {
     Policy(policy).upgradeToAndCall(newImplementation, data);
+  }
+
+  function transferPolicyOwnership(address policy, address newOwner) public virtual onlyRole(ADMIN_ROLE) {
+    Policy(policy).transferOwnership(newOwner);
   }
 
   function _handlePolicyError(Payload memory payload, address policy, bytes memory err) internal pure {

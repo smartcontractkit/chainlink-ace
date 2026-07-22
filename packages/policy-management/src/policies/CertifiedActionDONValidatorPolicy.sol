@@ -53,7 +53,7 @@ contract CertifiedActionDONValidatorPolicy is CertifiedActionValidatorPolicy, IR
   }
 
   function typeAndVersion() public pure virtual override returns (string memory) {
-    return "CertifiedActionDONValidatorPolicy 1.1.1";
+    return "CertifiedActionDONValidatorPolicy 1.2.0";
   }
 
   /**

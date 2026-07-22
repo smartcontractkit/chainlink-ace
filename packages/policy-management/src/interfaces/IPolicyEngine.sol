@@ -113,6 +113,15 @@ interface IPolicyEngine {
   event PolicyRemoved(address indexed target, bytes4 indexed selector, address policy);
 
   /**
+   * @notice Emitted when a removed policy's onUninstall() hook reverts. Removal still succeeds.
+   * @param target The address of the target contract for which the policy was configured.
+   * @param selector The selector of the policy.
+   * @param policy The policy address.
+   * @param reason The raw revert data returned by the failing onUninstall() hook.
+   */
+  event PolicyUninstallFailed(address indexed target, bytes4 indexed selector, address policy, bytes reason);
+
+  /**
    * @notice Emitted when an extractor is set for a selector.
    * @param selector The selector.
    * @param extractor The extractor address.

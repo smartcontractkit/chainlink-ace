@@ -261,6 +261,13 @@ contract PolicyFactory {
    * @dev Combines the sender address and unique policy ID to create a unique salt.
    *      This ensures that the same creator cannot deploy multiple policies with the same ID,
    *      while allowing different creators to use the same policy ID.
+   *
+   *      Note that `block.chainid` is intentionally omitted from the salt. The same (sender, uniquePolicyId) therefore
+   *      resolves to the same CREATE2 address on every chain. This is not a cross-chain hijack risk because the salt
+   *      binds `msg.sender`, so an attacker on any chain derives a different address and cannot occupy another's
+   *      predicted address; chain-consistent addresses are the intended property of deterministic deployment. If
+   *      per-chain address divergence for the same `uniquePolicyId` is ever required, include `block.chainid` in the
+   *      salt here.
    * @param sender The address of the policy creator
    * @param uniquePolicyId The unique identifier for the policy
    * @return The generated salt for deterministic deployment

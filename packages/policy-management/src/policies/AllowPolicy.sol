@@ -10,7 +10,7 @@ import {Policy} from "../core/Policy.sol";
  * Returns Continue on success (not Allowed).
  */
 contract AllowPolicy is Policy {
-  string public constant override typeAndVersion = "AllowPolicy 1.1.1";
+  string public constant override typeAndVersion = "AllowPolicy 1.2.0";
 
   /**
    * @notice Emitted when an address is added to the allow list.

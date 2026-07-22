@@ -193,12 +193,15 @@ Use this component to link wallet addresses to a single identity and manage cred
 graph TB
     App[Your Contract] -->|inherits| PP[PolicyProtected]
     App -->|calls| PE[PolicyEngine]
-    PE -->|executes| IVP[CredentialRegistryIdentityValidatorPolicy]
+    PE -->|executes| IVP[CredentialRegistryIdentityValidatorPolicy<br/>(single requirement set)]
+    PE -->|executes| GIVP[GroupedIdentityValidatorPolicy<br/>(segmented requirements)]
     PE -->|executes| SP[SanctionsPolicy]
     PE -->|executes| OP[Other Policies]
 
     IVP -->|reads from| IR[IdentityRegistry]
     IVP -->|reads from| CR[CredentialRegistry]
+    GIVP -->|routes + reads from| IR
+    GIVP -->|routes + reads from| CR
     SP -->|reads from| SL[Sanctions List]
 ```
 

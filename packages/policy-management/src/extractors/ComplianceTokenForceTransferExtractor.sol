@@ -14,7 +14,7 @@ import {ComplianceTokenERC20} from "../../../tokens/erc-20/src/ComplianceTokenER
  */
 contract ComplianceTokenForceTransferExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ComplianceTokenForceTransferExtractor 1.1.1";
+  string public constant override typeAndVersion = "ComplianceTokenForceTransferExtractor 1.2.0";
 
   /// @notice Parameter key for the sender/from address in forced transfer operations
   bytes32 public constant PARAM_FROM = keccak256("from");

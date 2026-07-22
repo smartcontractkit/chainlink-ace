@@ -6,7 +6,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {MockTokenUpgradeable} from "./MockTokenUpgradeable.sol";
 
 contract MockTokenExtractor is IExtractor {
-  string public constant override typeAndVersion = "MockTokenExtractor 1.1.1";
+  string public constant override typeAndVersion = "MockTokenExtractor 1.2.0";
 
   bytes32 public constant PARAM_FROM = keccak256("from");
   bytes32 public constant PARAM_TO = keccak256("to");

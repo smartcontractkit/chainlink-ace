@@ -14,7 +14,7 @@ import {IToken} from "../../../vendor/erc-3643/token/IToken.sol";
  */
 contract ERC3643ForcedTransferExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ERC3643ForcedTransferExtractor 1.1.1";
+  string public constant override typeAndVersion = "ERC3643ForcedTransferExtractor 1.2.0";
 
   /// @notice Parameter key for the sender/from address in forced transfer operations
   bytes32 public constant PARAM_FROM = keccak256("from");

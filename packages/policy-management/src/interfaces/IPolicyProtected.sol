@@ -48,6 +48,12 @@ interface IPolicyProtected is IERC165 {
   function getContext() external view returns (bytes memory);
 
   /**
+   * @notice Gets the context for a specific sender.
+   * @return The context for the transaction.
+   */
+  function getSenderContext(address sender) external view returns (bytes memory);
+
+  /**
    * @notice Clears the context for the current transaction.
    */
   function clearContext() external;

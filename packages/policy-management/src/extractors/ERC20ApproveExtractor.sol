@@ -13,7 +13,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 contract ERC20ApproveExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "ERC20ApproveExtractor 1.1.1";
+  string public constant override typeAndVersion = "ERC20ApproveExtractor 1.2.0";
 
   /// @notice Parameter key for the account granting the approval (msg.sender)
   bytes32 public constant PARAM_ACCOUNT = keccak256("account");

@@ -14,7 +14,7 @@ import {ICredentialRegistry} from "../../../cross-chain-identity/src/interfaces/
  */
 contract CredentialRegistryExtractor is IExtractor {
   /// @notice Type and version of the extractor
-  string public constant override typeAndVersion = "CredentialRegistryExtractor 1.1.1";
+  string public constant override typeAndVersion = "CredentialRegistryExtractor 1.2.0";
 
   /// @notice Parameter key for the cross-chain identity
   bytes32 public constant PARAM_CCID = keccak256("ccid");

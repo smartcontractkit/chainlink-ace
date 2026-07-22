@@ -35,6 +35,10 @@ contract PolicyProtectedNonOwnable is IPolicyProtected {
     return "";
   }
 
+  function getSenderContext(address) external pure override returns (bytes memory) {
+    return "";
+  }
+
   function clearContext() external override {}
 
   function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {

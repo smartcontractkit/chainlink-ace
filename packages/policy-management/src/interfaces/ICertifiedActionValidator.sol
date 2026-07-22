@@ -73,10 +73,15 @@ interface ICertifiedActionValidator {
   function present(Permit calldata permit, bytes calldata signature) external;
 
   /**
-   * @notice Checks if a permit is valid.
+   * @notice Checks whether a permit is currently valid: signed by an authorized issuer, not revoked, not expired, and
+   * within its usage limit.
+   * @dev Mirrors the permit-lifecycle validation `run()` performs, so a `true` result means the permit itself would
+   * pass validation. It does NOT bind the result to a specific action: the caller/subject/selector/parameters intent
+   * match (and any subclass hook logic) is only enforced in `run()`. Reverts if the signature is malformed.
    * @param permit The permit to check.
    * @param signature The signature of the permit.
-   * @return True if the permit is valid, false otherwise.
+   * @return True if the permit is signed by an authorized issuer and is currently unrevoked, unexpired, and under its
+   * usage limit.
    */
   function check(Permit calldata permit, bytes calldata signature) external view returns (bool);
 

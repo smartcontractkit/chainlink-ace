@@ -56,10 +56,15 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     virtual
     initializer
   {
-    __CredentialRegistryIdentitityValidator_init(credentialSourceInputs, credentialRequirementInputs);
+    __CredentialRegistryIdentityValidator_init(credentialSourceInputs, credentialRequirementInputs);
   }
 
-  function __CredentialRegistryIdentitityValidator_init(
+  /**
+   * @dev Initializes ownership, credential sources, and credential requirements.
+   * @param credentialSourceInputs The credential sources to add.
+   * @param credentialRequirementInputs The credential requirements to add.
+   */
+  function __CredentialRegistryIdentityValidator_init(
     CredentialSourceInput[] memory credentialSourceInputs,
     CredentialRequirementInput[] memory credentialRequirementInputs
   )
@@ -67,10 +72,15 @@ contract CredentialRegistryIdentityValidator is OwnableUpgradeable, ICredentialR
     onlyInitializing
   {
     __Ownable_init(msg.sender);
-    __CredentialRegistryIdentitityValidator_init_unchained(credentialSourceInputs, credentialRequirementInputs);
+    __CredentialRegistryIdentityValidator_init_unchained(credentialSourceInputs, credentialRequirementInputs);
   }
 
-  function __CredentialRegistryIdentitityValidator_init_unchained(
+  /**
+   * @dev Initializes credential sources and credential requirements without initializing inherited contracts.
+   * @param credentialSourceInputs The credential sources to add.
+   * @param credentialRequirementInputs The credential requirements to add.
+   */
+  function __CredentialRegistryIdentityValidator_init_unchained(
     CredentialSourceInput[] memory credentialSourceInputs,
     CredentialRequirementInput[] memory credentialRequirementInputs
   )

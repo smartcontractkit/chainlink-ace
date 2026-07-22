@@ -9,7 +9,7 @@ import {ICredentialRegistry} from "../../src/interfaces/ICredentialRegistry.sol"
  * @dev Used for testing error handling in CredentialRegistryIdentityValidator
  */
 contract MockCredentialRegistryReverting is ICredentialRegistry {
-  string public constant override typeAndVersion = "MockCredentialRegistryReverting 1.1.1";
+  string public constant override typeAndVersion = "MockCredentialRegistryReverting 1.2.0";
 
   bool private s_shouldRevert;
   string private s_revertMessage;

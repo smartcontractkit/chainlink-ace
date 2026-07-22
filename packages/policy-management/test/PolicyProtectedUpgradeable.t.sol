@@ -122,4 +122,85 @@ contract PolicyProtectedUpgradeableTest is BaseProxyTest {
     token.attachPolicyEngine(address(policyEngine));
     assert(token.getPolicyEngine() == address(policyEngine));
   }
+
+  function test_getContext_defaultsEmpty() public view {
+    assertEq(token.getContext().length, 0);
+  }
+
+  function test_setContext_getContext() public {
+    bytes memory context = abi.encode("some-context", uint256(42));
+    token.setContext(context);
+    assertEq(token.getContext(), context);
+  }
+
+  function test_getContext_isPerSender() public {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+    bytes memory aliceContext = abi.encode("alice");
+    bytes memory bobContext = abi.encode("bob");
+
+    vm.prank(alice);
+    token.setContext(aliceContext);
+    vm.prank(bob);
+    token.setContext(bobContext);
+
+    vm.prank(alice);
+    assertEq(token.getContext(), aliceContext);
+    vm.prank(bob);
+    assertEq(token.getContext(), bobContext);
+  }
+
+  function test_clearContext() public {
+    bytes memory context = abi.encode("some-context");
+    token.setContext(context);
+    assertEq(token.getContext(), context);
+
+    token.clearContext();
+    assertEq(token.getContext().length, 0);
+  }
+
+  function test_clearContext_onlyClearsCallerContext() public {
+    address alice = makeAddr("alice");
+    bytes memory aliceContext = abi.encode("alice");
+    bytes memory selfContext = abi.encode("self");
+
+    vm.prank(alice);
+    token.setContext(aliceContext);
+    token.setContext(selfContext);
+
+    token.clearContext();
+
+    assertEq(token.getContext().length, 0);
+    assertEq(token.getSenderContext(alice), aliceContext);
+  }
+
+  function test_getSenderContext_defaultsEmpty() public {
+    assertEq(token.getSenderContext(makeAddr("nobody")).length, 0);
+  }
+
+  function test_getSenderContext_returnsSenderContext() public {
+    address alice = makeAddr("alice");
+    address bob = makeAddr("bob");
+    bytes memory aliceContext = abi.encode("alice", uint256(1));
+    bytes memory bobContext = abi.encode("bob", uint256(2));
+
+    vm.prank(alice);
+    token.setContext(aliceContext);
+    vm.prank(bob);
+    token.setContext(bobContext);
+
+    assertEq(token.getSenderContext(alice), aliceContext);
+    assertEq(token.getSenderContext(bob), bobContext);
+  }
+
+  function test_getSenderContext_matchesGetContext() public {
+    address alice = makeAddr("alice");
+    bytes memory context = abi.encode("alice-context");
+
+    vm.prank(alice);
+    token.setContext(context);
+
+    vm.prank(alice);
+    assertEq(token.getContext(), token.getSenderContext(alice));
+  }
 }

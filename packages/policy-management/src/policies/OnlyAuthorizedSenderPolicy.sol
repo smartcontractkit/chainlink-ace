@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that rejects method calls if the sender is not on the authorized list.
  */
 contract OnlyAuthorizedSenderPolicy is Policy {
-  string public constant override typeAndVersion = "OnlyAuthorizedSenderPolicy 1.1.1";
+  string public constant override typeAndVersion = "OnlyAuthorizedSenderPolicy 1.2.0";
 
   /**
    * @notice Emitted when an address is added to the authorized list.

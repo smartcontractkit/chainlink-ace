@@ -28,7 +28,7 @@ import {Policy} from "../core/Policy.sol";
  * ```
  */
 contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
-  string public constant override typeAndVersion = "RoleBasedAccessControlPolicy 1.1.1";
+  string public constant override typeAndVersion = "RoleBasedAccessControlPolicy 1.2.0";
 
   /**
    * @notice Emitted when the operation allowance is granted to a role.
@@ -46,8 +46,12 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
   /// @custom:storage-location erc7201:chainlink.ace.RoleBasedAccessControlPolicy
   struct RoleBasedAccessControlPolicyStorage {
     /// @notice The mapping of operation allowances to roles. Each operation can have multiple roles that are allowed to
-    /// perform it.
+    /// perform it. Retained for enumeration in {hasAllowedRole}.
     mapping(bytes4 operation => bytes32[] roles) rolesByOperation;
+    /// @notice 1-based position of each role within {rolesByOperation} for an operation (0 means the role is not
+    /// allowed). Mirrors {rolesByOperation} to keep grant deduplication, remove existence checks, and the array removal
+    /// itself O(1) regardless of how many roles an operation has.
+    mapping(bytes4 operation => mapping(bytes32 role => uint256 oneBasedIndex)) roleIndexByOperation;
   }
 
   // keccak256(abi.encode(uint256(keccak256("chainlink.ace.RoleBasedAccessControlPolicy")) - 1)) &
@@ -101,13 +105,12 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
    */
   function grantOperationAllowanceToRole(bytes4 operation, bytes32 role) public onlyOwner {
     RoleBasedAccessControlPolicyStorage storage $ = _getRoleBasedAccessControlPolicyStorage();
-    uint256 length = $.rolesByOperation[operation].length;
-    for (uint256 i = 0; i < length; i++) {
-      if ($.rolesByOperation[operation][i] == role) {
-        revert("Role already has operation allowance");
-      }
+    if ($.roleIndexByOperation[operation][role] != 0) {
+      revert("Role already has operation allowance");
     }
     $.rolesByOperation[operation].push(role);
+    // Store the 1-based index so the role can be located and removed in O(1).
+    $.roleIndexByOperation[operation][role] = $.rolesByOperation[operation].length;
     emit OperationAllowanceGrantedToRole(operation, role);
   }
 
@@ -119,16 +122,22 @@ contract RoleBasedAccessControlPolicy is Policy, AccessControlUpgradeable {
    */
   function removeOperationAllowanceFromRole(bytes4 operation, bytes32 role) public onlyOwner {
     RoleBasedAccessControlPolicyStorage storage $ = _getRoleBasedAccessControlPolicyStorage();
-    uint256 length = $.rolesByOperation[operation].length;
-    for (uint256 i = 0; i < length; i++) {
-      if ($.rolesByOperation[operation][i] == role) {
-        $.rolesByOperation[operation][i] = $.rolesByOperation[operation][length - 1];
-        $.rolesByOperation[operation].pop();
-        emit OperationAllowanceRemovedFromRole(operation, role);
-        return;
-      }
+    uint256 oneBasedIndex = $.roleIndexByOperation[operation][role];
+    if (oneBasedIndex == 0) {
+      revert("Role does not have operation allowance");
     }
-    revert("Role does not have operation allowance");
+
+    bytes32[] storage roles = $.rolesByOperation[operation];
+    uint256 index = oneBasedIndex - 1;
+    uint256 lastIndex = roles.length - 1;
+    if (index != lastIndex) {
+      bytes32 lastRole = roles[lastIndex];
+      roles[index] = lastRole;
+      $.roleIndexByOperation[operation][lastRole] = oneBasedIndex;
+    }
+    roles.pop();
+    delete $.roleIndexByOperation[operation][role];
+    emit OperationAllowanceRemovedFromRole(operation, role);
   }
 
   /**

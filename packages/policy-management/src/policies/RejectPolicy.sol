@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that rejects method calls if one of the addresses is on the list.
  */
 contract RejectPolicy is Policy {
-  string public constant override typeAndVersion = "RejectPolicy 1.1.1";
+  string public constant override typeAndVersion = "RejectPolicy 1.2.0";
 
   /**
    * @notice Emitted when an address is added to the reject list.

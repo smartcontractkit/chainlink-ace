@@ -9,7 +9,7 @@ import {Policy} from "../core/Policy.sol";
  * @notice A policy that can be toggled to pause or unpause execution.
  */
 contract PausePolicy is Policy {
-  string public constant override typeAndVersion = "PausePolicy 1.1.1";
+  string public constant override typeAndVersion = "PausePolicy 1.2.0";
 
   /**
    * @notice Emitted when the pause state of the policy is changed.

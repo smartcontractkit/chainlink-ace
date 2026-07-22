@@ -126,6 +126,52 @@ contract SecureMintPolicyTest is BaseProxyTest {
     policy.setReservesFeed(address(porFeed));
   }
 
+  function test_setReservesFeed_zeroAddress_reverts() public {
+    vm.startPrank(deployer, deployer);
+
+    vm.expectRevert("reserves feed is zero address");
+    policy.setReservesFeed(address(0));
+  }
+
+  function test_setReservesFeed_nonContract_reverts() public {
+    vm.startPrank(deployer, deployer);
+
+    // An EOA has no code, so it cannot be a valid AggregatorV3 feed.
+    vm.expectRevert("reserves feed is not a contract");
+    policy.setReservesFeed(makeAddr("eoaFeed"));
+  }
+
+  function test_configure_zeroAddressFeed_reverts() public {
+    SecureMintPolicy policyImpl = new SecureMintPolicy();
+    bytes memory configParams = abi.encode(
+      address(0),
+      SecureMintPolicy.ReserveMarginConfigs({
+        reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None, reserveMarginAmount: 0
+      }),
+      0,
+      SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
+    );
+
+    // The configure() path must reject an invalid feed at deployment, not just setReservesFeed().
+    vm.expectRevert("reserves feed is zero address");
+    _deployPolicy(address(policyImpl), address(policyEngine), deployer, configParams);
+  }
+
+  function test_configure_nonContractFeed_reverts() public {
+    SecureMintPolicy policyImpl = new SecureMintPolicy();
+    bytes memory configParams = abi.encode(
+      makeAddr("eoaFeed"),
+      SecureMintPolicy.ReserveMarginConfigs({
+        reserveMarginMode: SecureMintPolicy.ReserveMarginMode.None, reserveMarginAmount: 0
+      }),
+      0,
+      SecureMintPolicy.TokenMetadata(address(token), TOKEN_DECIMALS)
+    );
+
+    vm.expectRevert("reserves feed is not a contract");
+    _deployPolicy(address(policyImpl), address(policyEngine), deployer, configParams);
+  }
+
   function test_setTokenDecimals_succeeds() public {
     uint8 newDecimals = 6;
 

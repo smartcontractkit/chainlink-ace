@@ -6,7 +6,7 @@ import {IPolicyEngine} from "../../src/interfaces/IPolicyEngine.sol";
 import {Policy} from "../../src/core/Policy.sol";
 
 contract PolicyAlwaysRejected is Policy {
-  string public constant override typeAndVersion = "PolicyAlwaysRejected 1.1.1";
+  string public constant override typeAndVersion = "PolicyAlwaysRejected 1.2.0";
 
   event ConfigFuncExecuted();
 
